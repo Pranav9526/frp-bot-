@@ -1,18 +1,17 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import os
 import datetime
 import traceback
-from keep_alive import keep_alive
+import os
 
 # === CONFIGURATION ===
-TOKEN = os.environ["DISCORD_BOT_TOKEN"]
-GUILD_ID = 1169251155721846855  # server ID
-PROOF_CHANNEL_ID = 1393423615432720545 
+GUILD_ID = 1169251155721846855  # Replace with your server ID
+PROOF_CHANNEL_ID = 1393423615432720545
 FORWARDPROOF_ROLE_ID = 1346488365608079452  # Role for proof forwarding
 SAYEMBED_ROLE_ID = 1346488355486961694  # Role for announcement embeds (higher role)
 THUMBNAIL_URL = "https://cdn.discordapp.com/attachments/1372059707694645360/1393578650015760516/491878536_605875318625766_7662976636025833179_n.png?ex=6873aec1&is=68725d41&hm=e83988dc1a3f58e4839f31e74d1ec5b00c1ca930aaf7d3dcdc9837b4472fbf0a&"  # Set a default thumbnail if desired
+TICKET_CHANNEL_PREFIX = "ticket"  # Channels must start with this to allow /forwardproof
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -64,7 +63,7 @@ async def handle_proof_forward(source, reporter, accused, replied_msg, is_slash)
             if is_slash:
                 await source.response.send_message("✅ Proof forwarded.", ephemeral=True)
             else:
-                await source.send("✅ Proof forwarded.")
+                await source.message.add_reaction("✅")
         else:
             raise Exception("Target proof channel not found.")
 
@@ -79,6 +78,10 @@ async def handle_proof_forward(source, reporter, accused, replied_msg, is_slash)
 @bot.tree.command(name="forwardproof", description="Forward a proof message to the proof channel.")
 @app_commands.describe(reporter="Name of the reporter", accused="Name of the accused player")
 async def forwardproof_slash(interaction: discord.Interaction, reporter: str, accused: str):
+    if not interaction.channel.name.startswith(TICKET_CHANNEL_PREFIX):
+        await interaction.response.send_message("❌ This command can only be used in ticket channels.", ephemeral=True)
+        return
+
     if not any(role.id == FORWARDPROOF_ROLE_ID for role in interaction.user.roles):
         await interaction.response.send_message("❌ You don’t have permission to use this.", ephemeral=True)
         return
@@ -91,6 +94,10 @@ async def forwardproof_slash(interaction: discord.Interaction, reporter: str, ac
 async def forwardproof(ctx, reporter: str, accused: str):
     if not any(role.id == FORWARDPROOF_ROLE_ID for role in ctx.author.roles):
         await ctx.send("❌ You don’t have permission to use this.")
+        return
+
+    if not ctx.channel.name.startswith(TICKET_CHANNEL_PREFIX):
+        await ctx.send("❌ This command can only be used in ticket channels.")
         return
 
     if not ctx.message.reference:
@@ -110,14 +117,8 @@ async def sayembed(interaction: discord.Interaction, title: str, description: st
 
     embed_color = color_map.get(color.lower(), discord.Color.blue())
     embed = discord.Embed(title=title, description=description, color=embed_color, timestamp=datetime.datetime.utcnow())
-    if footer:
-        embed.set_footer(text=footer)
-    else:
-        embed.set_footer(text="FRP BOT")
-    if thumbnail:
-        embed.set_thumbnail(url=thumbnail)
-    else:
-        embed.set_thumbnail(url=THUMBNAIL_URL)
+    embed.set_footer(text=footer if footer else "FRP BOT")
+    embed.set_thumbnail(url=thumbnail if thumbnail else THUMBNAIL_URL)
 
     try:
         await channel.send(embed=embed)
@@ -144,7 +145,7 @@ async def say(ctx, *, args=None):
         parts = args.rsplit(" ", 1)
         if len(parts) != 2:
             raise ValueError("Missing title or channel.")
-        
+
         title, channel_mention = parts
         channel = await commands.TextChannelConverter().convert(ctx, channel_mention)
 
@@ -157,7 +158,6 @@ async def say(ctx, *, args=None):
         )
         embed.set_footer(text="FRP BOT")
         embed.set_thumbnail(url=THUMBNAIL_URL)
-
         await channel.send(embed=embed)
         await ctx.message.add_reaction("✅")
 
@@ -171,7 +171,5 @@ async def on_ready():
     print(f"✅ Bot is online as {bot.user}")
 
 
-# Start server to keep alive
-keep_alive()
 TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
 bot.run(TOKEN)
