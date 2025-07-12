@@ -4,6 +4,8 @@ from discord import app_commands
 import datetime
 import traceback
 import os
+from keep_alive import keep_alive
+
 
 # === CONFIGURATION ===
 GUILD_ID = 1169251155721846855  # Replace with your server ID
@@ -170,6 +172,6 @@ async def on_ready():
     await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
     print(f"✅ Bot is online as {bot.user}")
 
-
+keep_alive()
 TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
 bot.run(TOKEN)
