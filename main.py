@@ -1,10 +1,13 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+import os
 import datetime
 import traceback
+from keep_alive import keep_alive
 
 # === CONFIGURATION ===
+TOKEN = os.environ["DISCORD_BOT_TOKEN"]
 GUILD_ID = 1169251155721846855  # server ID
 PROOF_CHANNEL_ID = 1393423615432720545 
 FORWARDPROOF_ROLE_ID = 1346488365608079452  # Role for proof forwarding
@@ -155,5 +158,7 @@ async def on_ready():
     print(f"✅ Bot is online as {bot.user}")
 
 
-# Replace with your actual bot token
-bot.run("YOUR_BOT_TOKEN")
+# Start server to keep alive
+keep_alive()
+TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
+bot.run(TOKEN)
