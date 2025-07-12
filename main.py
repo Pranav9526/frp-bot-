@@ -24,7 +24,8 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 @bot.event
 async def on_ready():
     try:
-        await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
+        guild = discord.Object(id=GUILD_ID)
+        await bot.tree.sync(guild=guild)
         print("✅ Bot is ready. Slash commands synced.")
     except Exception as e:
         print(f"Error syncing slash commands: {e}")
@@ -113,9 +114,9 @@ async def forwardproof(ctx, reporter: str = None, accused: str = None):
 
 @bot.command()
 @commands.has_role(SAY_ROLE_ID)
-async def say(ctx, title: str = None, channel: discord.TextChannel = None):
+async def say(ctx, channel: discord.TextChannel = None, *, title: str = None):
     if not title or not channel:
-        return await ctx.send("❌ Usage: `!say <title> <#channel>` (reply to a message)")
+        return await ctx.send("❌ Usage: `!say <#channel> <title>` (reply to a message)")
 
     if ctx.message.reference:
         replied_msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
@@ -149,6 +150,47 @@ async def say_slash(interaction: discord.Interaction, title: str, channel: disco
         await handle_say(interaction, title, channel, replied_msg)
     except Exception:
         await interaction.response.send_message("❌ Could not fetch the message. Check the message ID.", ephemeral=True)
+
+
+@bot.tree.command(name="sayembed", description="Send a styled embed to a channel.")
+@app_commands.describe(
+    title="Title of the embed",
+    description="Description/body of the embed",
+    color="Color name like red, blue, green (optional)",
+    channel="Channel where the embed should be sent"
+)
+async def sayembed(
+    interaction: discord.Interaction,
+    title: str,
+    description: str,
+    color: str,
+    channel: discord.TextChannel
+):
+    allowed_role_id = 1346488355486961694
+    if not any(role.id == allowed_role_id for role in interaction.user.roles):
+        return await interaction.response.send_message("❌ You don’t have permission to use this.", ephemeral=True)
+
+    color_map = {
+        "red": discord.Color.red(),
+        "blue": discord.Color.blue(),
+        "green": discord.Color.green(),
+        "orange": discord.Color.orange(),
+        "yellow": discord.Color.gold(),
+        "purple": discord.Color.purple(),
+        "black": discord.Color.darker_grey(),
+        "white": discord.Color.lighter_grey(),
+    }
+    embed_color = color_map.get(color.lower(), discord.Color.blue())
+
+    embed = discord.Embed(title=title, description=description, color=embed_color)
+    embed.set_footer(text="UNDERCITY ROLEPLAY")
+    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1372059707694645360/1393578650015760516/491878536_605875318625766_7662976636025833179_n.png")
+
+    try:
+        await channel.send(embed=embed)
+        await interaction.response.send_message("✅ Embed sent successfully!", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Failed to send embed:\n`{str(e)}`", ephemeral=True)
 
 
 # -------- Keep Alive & Run --------
