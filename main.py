@@ -8,7 +8,7 @@ from keep_alive import keep_alive
 TOKEN = os.environ["DISCORD_BOT_TOKEN"]
 GUILD_ID = 1169251155721846855  # 🔁 Replace with your actual server ID
 PROOFS_CHANNEL_ID = 1393423615432720545  # 🔁 Replace with your #frp-proofs channel ID
-STAFF_ROLE_ID = 1346488365608079452  # 🔒 Role allowed to use commands
+ALLOWED_ROLE_ID = 1346488365608079452  # 🔒 Role allowed to use commands
 
 intents = discord.Intents.default()
 intents.messages = True
