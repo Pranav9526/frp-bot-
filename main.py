@@ -127,7 +127,44 @@ async def sayembed(interaction: discord.Interaction, title: str, description: st
 
 
 @bot.command()
-async def say(ctx, title: str, channel: discord.TextChannel):
+async def say(ctx, *, args=None):
+    if not any(role.id == SAYEMBED_ROLE_ID for role in ctx.author.roles):
+        await ctx.send("❌ You don’t have permission.")
+        return
+
+    if not ctx.message.reference:
+        await ctx.send("❌ You must reply to a message that will become the embed body.")
+        return
+
+    if not args:
+        await ctx.send("❌ Invalid format.\n**Usage:** `!say <title> #channel-name`")
+        return
+
+    try:
+        # Split args into title and channel
+        parts = args.rsplit(" ", 1)
+        if len(parts) != 2:
+            raise ValueError("Missing title or channel.")
+        
+        title, channel_mention = parts
+        channel = await commands.TextChannelConverter().convert(ctx, channel_mention)
+
+        replied_msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+        embed = discord.Embed(
+            title=title.strip(),
+            description=replied_msg.content,
+            color=color_map.get("cyan", discord.Color.blurple()),
+            timestamp=datetime.datetime.utcnow()
+        )
+        embed.set_footer(text="FRP BOT")
+        embed.set_thumbnail(url=THUMBNAIL_URL)
+
+        await channel.send(embed=embed)
+        await ctx.send("✅ Message sent.", delete_after=5)
+
+    except Exception as e:
+        await ctx.send(f"❌ Failed to send embed. Error:\n```{str(e)}```\n**Usage:** `!say <title> #channel-name`")
+
     if not any(role.id == SAYEMBED_ROLE_ID for role in ctx.author.roles):
         await ctx.send("❌ You don’t have permission.")
         return
