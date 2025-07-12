@@ -141,7 +141,6 @@ async def say(ctx, *, args=None):
         return
 
     try:
-        # Split args into title and channel
         parts = args.rsplit(" ", 1)
         if len(parts) != 2:
             raise ValueError("Missing title or channel.")
@@ -160,33 +159,10 @@ async def say(ctx, *, args=None):
         embed.set_thumbnail(url=THUMBNAIL_URL)
 
         await channel.send(embed=embed)
-        await ctx.send("✅ Message sent.", delete_after=5)
+        await ctx.message.add_reaction("✅")
 
     except Exception as e:
-        await ctx.send(f"❌ Failed to send embed. Error:\n```{str(e)}```\n**Usage:** `!say <title> #channel-name`")
-
-    if not any(role.id == SAYEMBED_ROLE_ID for role in ctx.author.roles):
-        await ctx.send("❌ You don’t have permission.")
-        return
-
-    if not ctx.message.reference:
-        await ctx.send("❌ You must reply to a message to use this.")
-        return
-
-    try:
-        replied_msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-        embed = discord.Embed(
-            title=title,
-            description=replied_msg.content,
-            color=color_map.get("cyan", discord.Color.blurple()),
-            timestamp=datetime.datetime.utcnow()
-        )
-        embed.set_footer(text="FRP BOT")
-        embed.set_thumbnail(url=THUMBNAIL_URL)
-        await channel.send(embed=embed)
-        await ctx.send("✅ Message sent.", delete_after=5)
-    except Exception as e:
-        await ctx.send(f"❌ Error: `{str(e)}`")
+        await ctx.send(f"❌ Failed to send embed.\n```{str(e)}```\n**Usage:** `!say <title> #channel-name`")
 
 
 @bot.event
