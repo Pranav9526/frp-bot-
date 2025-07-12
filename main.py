@@ -1,5 +1,3 @@
-import sys
-sys.modules["audioop"] = None
 import discord
 from discord.ext import commands
 from discord import app_commands
