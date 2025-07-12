@@ -7,10 +7,10 @@ import datetime
 
 # === CONFIG ===
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-GUILD_ID = 123456789012345678  # Replace with your server ID
-PROOF_CHANNEL_ID = 1386215812758507671  # Channel where proofs will be sent
-ALLOWED_ROLE_ID = 1386043933552804010  # Role allowed to use forwardproof
-SAY_ROLE_ID = 1386043933552804010  # Role allowed to use say commands
+GUILD_ID = 1169251155721846855  # Replace with your server ID
+PROOF_CHANNEL_ID = 1393423615432720545  # Channel where proofs will be sent
+ALLOWED_ROLE_ID = 1346488365608079452  # Role allowed to use forwardproof
+SAY_ROLE_ID = 1346488355486961694  # Role allowed to use say commands
 TICKET_CHANNEL_PREFIX = "ticket-"
 
 intents = discord.Intents.default()
