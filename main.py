@@ -36,6 +36,13 @@ async def handle_proof_forward(ctx_or_interaction, reporter, accused, replied_ms
         return
 
     target_channel = bot.get_channel(PROOFS_CHANNEL_ID)
+    if not target_channel:
+        err = "❌ Could not find the proofs channel. Check the channel ID."
+        if is_slash:
+            await ctx_or_interaction.response.send_message(err, ephemeral=True)
+        else:
+            await ctx_or_interaction.send(err)
+        return
 
     embed = discord.Embed(
         title="📎 FRP Report Proof",
@@ -45,28 +52,27 @@ async def handle_proof_forward(ctx_or_interaction, reporter, accused, replied_ms
             f"🗂 **Ticket Channel:** {ctx_or_interaction.channel.mention}\n"
             f"👮 **Handled By:** {ctx_or_interaction.user.mention if is_slash else ctx_or_interaction.author.mention}"
         ),
-        color=discord.Color.red() if is_slash else discord.Color.orange()
+        color=discord.Color.red()
     )
 
+    # Use the first image as preview
+    embed.set_image(url=replied_msg.attachments[0].url)
+
+    # Add timestamp
     timestamp = ctx_or_interaction.created_at if is_slash else ctx_or_interaction.message.created_at
     embed.set_footer(text=timestamp.strftime("Time: %d %B %Y, %I:%M %p"))
 
-    files = []
-    for i, attachment in enumerate(replied_msg.attachments):
-        if i == 0:
-            embed.set_image(url=attachment.url)
-        else:
-            embed.add_field(name=f"📎 Attachment {i+1}", value=attachment.url, inline=False)
-        file = await attachment.to_file()
-        files.append(file)
+    # Download all attachments as files
+    files = [await attachment.to_file() for attachment in replied_msg.attachments]
 
+    # Send single message
     await target_channel.send(embed=embed, files=files)
 
-    success_msg = "✅ Proof forwarded successfully!"
     if is_slash:
-        await ctx_or_interaction.response.send_message(success_msg, ephemeral=True)
+        await ctx_or_interaction.response.send_message("✅ Proof forwarded successfully!", ephemeral=True)
     else:
-        await ctx_or_interaction.send(success_msg)
+        await ctx_or_interaction.send("✅ Proof forwarded successfully!")
+
 
 # === Slash Command ===
 @bot.tree.command(name="forward-proof", description="Forward proof to frp-proofs channel")
