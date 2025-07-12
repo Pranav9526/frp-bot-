@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import os
+from keep_alive import keep_alive
 
 # === CONFIG ===
 TOKEN = os.environ["DISCORD_BOT_TOKEN"]
