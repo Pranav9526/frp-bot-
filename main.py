@@ -31,8 +31,8 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 @bot.event
 async def on_ready():
     try:
-        guild = discord.Object(id=GUILD_ID)
-        await bot.tree.sync(guild=guild)
+        await bot.tree.sync()  # Global sync
+        print("✅ Globally synced all slash commands.")
         print("✅ Bot is ready. Slash commands synced.")
     except Exception as e:
         print(f"Error syncing slash commands: {e}")
