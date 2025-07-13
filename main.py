@@ -237,10 +237,10 @@ async def fclog(ctx, ign: str = None, reason: str = None, cooldown_end: str = No
 
     msg = (
         f"## FACTION COOLDOWN NOTICE\n"
-        f"> `In-Game Name: {ign}\n"
-        f"> `Reason: ` {reason}\n"
-        f"> `Cooldown End: ` {cooldown_end}\n"
-        f">  `Player Mention {discord_user.mention} \n"
+        f"> `In-Game Name: {ign}`\n"
+        f"> Reason: ` {reason}`\n"
+        f"> Cooldown End: ` {cooldown_end}`\n"
+        f"> Player Mention {discord_user.mention} \n"
         f"> **OPEN TICKET AFTER COOLDOWN END**"
     )
 
@@ -423,10 +423,10 @@ async def fclog_slash(interaction: discord.Interaction, ign: str, reason: str, c
 
     msg = (
         f"## FACTION COOLDOWN NOTICE\n"
-        f"> `In-Game Name: {ign}\n"
-        f"> `Reason: ` {reason}\n"
-        f"> `Cooldown End: ` {cooldown_end}\n"
-        f">  `Player Mention {discord_user.mention} \n"
+        f"> `In-Game Name: {ign}`\n"
+        f"> Reason: ` {reason}`\n"
+        f"> Cooldown End: ` {cooldown_end}`\n"
+        f"> Player Mention {discord_user.mention} \n"
         f"> **OPEN TICKET AFTER COOLDOWN END**"
     )
 
