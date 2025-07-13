@@ -30,6 +30,9 @@ async def on_ready():
     except Exception as e:
         print(f"Error syncing slash commands: {e}")
 
+#----------Date TIme Handler ----------
+def format_datetime(dt: datetime.datetime):
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 # -------- Shared Forwardproof Handler --------
 async def handle_forward_proof(ctx, reporter, accused, replied_msg):
@@ -131,6 +134,25 @@ async def forwardproof(ctx, reporter: str = None, accused: str = None):
     else:
         await ctx.send("❌ Please reply to the proof message.")
 
+@bot.command()
+async def userinfo(ctx, member: discord.Member = None):
+    member = member or ctx.author
+
+    embed = discord.Embed(
+        title=f"User Info – {member}",
+        color=discord.Color.blue(),
+        timestamp=datetime.datetime.utcnow()
+    )
+    embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
+    embed.add_field(name="👤 Username", value=member.mention, inline=True)
+    embed.add_field(name="🆔 User ID", value=member.id, inline=True)
+    embed.add_field(name="🎖 Top Role", value=member.top_role.mention, inline=True)
+    embed.add_field(name="🤖 Bot?", value="Yes" if member.bot else "No", inline=True)
+    embed.add_field(name="📆 Account Created", value=format_datetime(member.created_at), inline=False)
+    embed.add_field(name="📥 Joined Server", value=format_datetime(member.joined_at), inline=False)
+
+    await ctx.send(embed=embed)
+
 
 @bot.command()
 @commands.has_role(SAY_ROLE_ID)
@@ -211,6 +233,28 @@ async def sayembed(
         await interaction.response.send_message("✅ Embed sent successfully!", ephemeral=True)
     except Exception as e:
         await interaction.response.send_message(f"❌ Failed to send embed:\n`{str(e)}`", ephemeral=True)
+
+# ------------- /userinfo -------------
+
+@bot.tree.command(name="userinfo", description="Get information about a user.")
+@app_commands.describe(user="Select the user to view info for")
+async def userinfo_slash(interaction: discord.Interaction, user: discord.Member = None):
+    member = user or interaction.user
+
+    embed = discord.Embed(
+        title=f"User Info – {member}",
+        color=discord.Color.blue(),
+        timestamp=datetime.datetime.utcnow()
+    )
+    embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
+    embed.add_field(name="👤 Username", value=member.mention, inline=True)
+    embed.add_field(name="🆔 User ID", value=member.id, inline=True)
+    embed.add_field(name="🎖 Top Role", value=member.top_role.mention, inline=True)
+    embed.add_field(name="🤖 Bot?", value="Yes" if member.bot else "No", inline=True)
+    embed.add_field(name="📆 Account Created", value=format_datetime(member.created_at), inline=False)
+    embed.add_field(name="📥 Joined Server", value=format_datetime(member.joined_at), inline=False)
+
+    await interaction.response.send_message(embed=embed)
 
 
 # -------- Keep Alive & Run --------
