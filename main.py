@@ -47,10 +47,16 @@ async def handle_forward_proof(ctx, reporter, accused, replied_msg):
         msg = "❌ This command can only be used in ticket channels."
         return await ctx.response.send_message(msg, ephemeral=True) if is_interaction else await ctx.send(msg)
 
-    image_files = [
-        await attachment.to_file() for attachment in replied_msg.attachments
-        if attachment.content_type and attachment.content_type.startswith("image")
-    ]
+    attachments = replied_msg.attachments
+    image_preview = None
+    files = []
+
+    for i, attachment in enumerate(attachments):
+        file = await attachment.to_file()
+        if i == 0 and attachment.content_type.startswith("image"):
+            image_preview = attachment.url
+        else:
+            files.append(file)
 
     embed = discord.Embed(
         title="FRP Report",
@@ -60,18 +66,32 @@ async def handle_forward_proof(ctx, reporter, accused, replied_msg):
     embed.add_field(name="Reporter", value=reporter, inline=True)
     embed.add_field(name="Accused", value=accused, inline=True)
     embed.add_field(name="Message", value=replied_msg.content or "(No text provided)", inline=False)
-    embed.set_footer(text=f"Forwarded by {ctx.user if is_interaction else ctx.author}")
+    embed.add_field(
+    name="Handled By",
+    value=(ctx.user.mention if is_interaction else ctx.author.mention),
+    inline=False
+    )
     embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1372059707694645360/1393578650015760516/491878536_605875318625766_7662976636025833179_n.png")
+
+    if image_preview:
+        embed.set_image(url=image_preview)
 
     try:
         channel = bot.get_channel(PROOF_CHANNEL_ID)
-        await channel.send(embed=embed, files=image_files)
+        await channel.send(embed=embed, files=files)
         success_msg = "✅ Proof forwarded successfully!"
         await ctx.response.send_message(success_msg, ephemeral=True) if is_interaction else await ctx.send(success_msg)
     except Exception as e:
         err_msg = f"❌ Failed to forward proof.\nError: `{e}`"
         await ctx.response.send_message(err_msg, ephemeral=True) if is_interaction else await ctx.send(err_msg)
 
+
+# --------- Emoji Say Handler ---------
+def resolve_emojis(message: discord.Message) -> str:
+    content = message.content
+    for emoji in message.emojis:
+        content = content.replace(f":{emoji.name}:", str(emoji))
+    return content
 
 # -------- Shared Say Handler --------
 async def handle_say(ctx, title, channel, replied_msg):
@@ -83,7 +103,7 @@ async def handle_say(ctx, title, channel, replied_msg):
 
     embed = discord.Embed(
         title=title,
-        description=replied_msg.content or "(No content provided)",
+        description=resolve_emojis(replied_msg) or "(No content provided)",
         color=discord.Color.from_rgb(0, 255, 255)
     )
     embed.set_footer(text="UNDERCITY ROLEPLAY")
