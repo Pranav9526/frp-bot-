@@ -12,7 +12,12 @@ GUILD_ID = 1169251155721846855  # Replace with your server ID
 PROOF_CHANNEL_ID = 1393423615432720545  # Channel where proofs will be sent
 ALLOWED_ROLE_ID = 1346488365608079452  # Role allowed to use forwardproof
 SAY_ROLE_ID = 1346488355486961694  # Role allowed to use say commands
+ADMIN_LOG_ROLE_ID = 1346488363053482037 # Role allowed to use log commands
 TICKET_CHANNEL_PREFIX = "ticket-"
+
+BAN_LOG_CHANNEL_ID = 1346488664917671946
+JAIL_LOG_CHANNEL_ID = 1382895763717226516
+FC_LOG_CHANNEL_ID = 1377862821924044860
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -174,6 +179,88 @@ async def say(ctx, channel: discord.TextChannel = None, *, title: str = None):
     else:
         await ctx.send("❌ Please reply to a message.")
 
+# -------- Log Commands ----------
+
+@bot.command()
+@commands.has_role(ADMIN_LOG_ROLE_ID)
+async def banlog(ctx, player_name: str = None, ban_days: str = None, unban: str = None, *, reason: str = None):
+    if not all([player_name, ban_days, unban, reason]):
+        return await ctx.send("❌ Usage: `!banlog <player_name> <ban_days> <unban> <reason>`")
+
+    msg = (
+        f"# PLAYER BAN\n\n"
+        f"> **`PLAYER NAME: {player_name}`   \n"
+        f"> BAN DAYS: {ban_days} \n"
+        f"> UNBAN: {unban} \n"
+        f"> BANNED BY: {ctx.author.mention}`**\n\n"
+        f"> **REASON: {reason}**\n"
+        f"<@&{MENTION_ROLE_ID}>"
+    )
+
+    try:
+        channel = bot.get_channel(BAN_LOG_CHANNEL_ID)
+        await channel.send(msg)
+        await ctx.send("✅ Ban log sent.")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to send.\n`{str(e)}`")
+
+
+@bot.command()
+@commands.has_role(ADMIN_LOG_ROLE_ID)
+async def jaillog(ctx, player_name: str = None, discord_user: discord.Member = None, minutes: str = None, *, reason: str = None):
+    if not all([player_name, discord_user, minutes, reason]):
+        return await ctx.send("❌ Usage: `!jaillog <player_name> <@user> <minutes> <reason>`")
+
+    msg = (
+        f"# PLAYER JAIL\n\n"
+        f"> **`PLAYER NAME: {player_name}\n"
+        f"> `DISCORD:` {discord_user.mention}  \n"
+        f"\n"
+        f"Was Prisoned For {minutes} Min's by {ctx.author.mention} \n"
+        f"\n"
+        f"Reason: {reason}"
+    )
+
+    try:
+        channel = bot.get_channel(JAIL_LOG_CHANNEL_ID)
+        await channel.send(msg)
+        await ctx.send("✅ Jail log sent.")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to send.\n`{str(e)}`")
+
+
+@bot.command()
+@commands.has_role(ADMIN_LOG_ROLE_ID)
+async def fclog(ctx, ign: str = None, reason: str = None, cooldown_end: str = None, discord_user: discord.Member = None):
+    if not all([ign, reason, cooldown_end, discord_user]):
+        return await ctx.send("❌ Usage: `!fclog <in_game_name> <reason> <cooldown_end_date> <@user>`")
+
+    msg = (
+        f"## FACTION COOLDOWN NOTICE\n"
+        f"> `In-Game Name: {ign}\n"
+        f"> `Reason: ` {reason}\n"
+        f"> `Cooldown End: ` {cooldown_end}\n"
+        f">  `Player Mention {discord_user.mention} \n"
+        f"> **OPEN TICKET AFTER COOLDOWN END**"
+    )
+
+    try:
+        channel = bot.get_channel(FC_LOG_CHANNEL_ID)
+        await channel.send(msg)
+        await ctx.send("✅ FC log sent.")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to send.\n`{str(e)}`")
+
+# -------- force re-sync ---------
+@bot.command()
+@commands.is_owner()
+async def sync(ctx):
+    try:
+        synced = await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
+        await ctx.send(f"✅ Synced {len(synced)} slash commands to this server.")
+    except Exception as e:
+        await ctx.send(f"❌ Sync failed.\n`{e}`")
+
 
 # -------- Slash Commands --------
 @bot.tree.command(name="forward-proof", description="Forward proofs to Ticket-Proofs channel.")
@@ -263,6 +350,92 @@ async def userinfo_slash(interaction: discord.Interaction, user: discord.Member 
     embed.add_field(name="📥 Joined Server", value=format_datetime(member.joined_at), inline=False)
 
     await interaction.response.send_message(embed=embed)
+
+# ------------/logs -------------
+@bot.tree.command(name="banlog", description="Post a player ban log")
+@app_commands.describe(
+    player_name="Player's in-game name",
+    ban_days="Ban duration (Permanent, 3 days, etc.)",
+    unban="Unban info (e.g. No Unban, or date)",
+    reason="Reason for the ban"
+)
+async def banlog_slash(interaction: discord.Interaction, player_name: str, ban_days: str, unban: str, reason: str):
+    if not any(role.id == ADMIN_LOG_ROLE_ID for role in interaction.user.roles):
+        return await interaction.response.send_message("❌ You don’t have permission.", ephemeral=True)
+
+    msg = (
+        f"# PLAYER BAN\n\n"
+        f"> **`PLAYER NAME: {player_name}`   \n"
+        f"> BAN DAYS: {ban_days} \n"
+        f"> UNBAN: {unban} \n"
+        f"> BANNED BY: {interaction.user.mention}`**\n\n"
+        f"> **REASON: {reason}**\n"
+        f"<@&{MENTION_ROLE_ID}>"
+    )
+
+    try:
+        channel = bot.get_channel(BAN_LOG_CHANNEL_ID)
+        await channel.send(msg)
+        await interaction.response.send_message("✅ Ban log sent.", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Failed to send log.\n`{e}`", ephemeral=True)
+
+
+@bot.tree.command(name="jaillog", description="Post a player jail log")
+@app_commands.describe(
+    player_name="Player's in-game name",
+    discord_user="Tag the player",
+    minutes="Time in minutes",
+    reason="Reason for jail"
+)
+async def jaillog_slash(interaction: discord.Interaction, player_name: str, discord_user: discord.Member, minutes: str, reason: str):
+    if not any(role.id == ADMIN_LOG_ROLE_ID for role in interaction.user.roles):
+        return await interaction.response.send_message("❌ You don’t have permission.", ephemeral=True)
+
+    msg = (
+        f"# PLAYER JAIL\n\n"
+        f"> **`PLAYER NAME: {player_name}\n"
+        f"> `DISCORD:` {discord_user.mention}  \n"
+        f"\n"
+        f"Was Prisoned For {minutes} Min's by {interaction.user.mention} \n"
+        f"\n"
+        f"Reason: {reason}"
+    )
+
+    try:
+        channel = bot.get_channel(JAIL_LOG_CHANNEL_ID)
+        await channel.send(msg)
+        await interaction.response.send_message("✅ Jail log sent.", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Failed to send log.\n`{e}`", ephemeral=True)
+
+
+@bot.tree.command(name="fclog", description="Post a faction cooldown notice")
+@app_commands.describe(
+    ign="In-game name",
+    reason="Reason for cooldown",
+    cooldown_end="Cooldown end date (e.g. 5/7/2025)",
+    discord_user="Tag the player"
+)
+async def fclog_slash(interaction: discord.Interaction, ign: str, reason: str, cooldown_end: str, discord_user: discord.Member):
+    if not any(role.id == ADMIN_LOG_ROLE_ID for role in interaction.user.roles):
+        return await interaction.response.send_message("❌ You don’t have permission.", ephemeral=True)
+
+    msg = (
+        f"## FACTION COOLDOWN NOTICE\n"
+        f"> `In-Game Name: {ign}\n"
+        f"> `Reason: ` {reason}\n"
+        f"> `Cooldown End: ` {cooldown_end}\n"
+        f">  `Player Mention {discord_user.mention} \n"
+        f"> **OPEN TICKET AFTER COOLDOWN END**"
+    )
+
+    try:
+        channel = bot.get_channel(FC_LOG_CHANNEL_ID)
+        await channel.send(msg)
+        await interaction.response.send_message("✅ FC log sent.", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Failed to send log.\n`{e}`", ephemeral=True)
 
 
 # -------- Keep Alive & Run --------
