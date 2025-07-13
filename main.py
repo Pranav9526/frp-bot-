@@ -193,7 +193,8 @@ async def banlog(ctx, player_name: str = None, ban_days: str = None, unban: str 
         f"> **`PLAYER NAME: {player_name}`   \n"
         f"> BAN DAYS: {ban_days} \n"
         f"> UNBAN: {unban} \n"
-        f"> BANNED BY: {ctx.author.mention}`**\n\n"
+        f"> BANNED BY: {ctx.author.mention}`**\n"
+        f"> \n"
         f"> **REASON: {reason}**\n"
         f"<@&{MENTION_ROLE_ID}>"
     )
@@ -369,7 +370,8 @@ async def banlog_slash(interaction: discord.Interaction, player_name: str, ban_d
         f"> **`PLAYER NAME: {player_name}`   \n"
         f"> BAN DAYS: {ban_days} \n"
         f"> UNBAN: {unban} \n"
-        f"> BANNED BY: {interaction.user.mention}`**\n\n"
+        f"> BANNED BY: {interaction.user.mention}`**\n"
+        f"> \n"
         f"> **REASON: {reason}**\n"
         f"<@&{MENTION_ROLE_ID}>"
     )
