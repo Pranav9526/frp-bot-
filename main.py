@@ -176,7 +176,7 @@ async def say(ctx, channel: discord.TextChannel = None, *, title: str = None):
 
 
 # -------- Slash Commands --------
-@bot.tree.command(name="forward-proof", description="Forward proofs to Ticket-Proofs channel."))
+@bot.tree.command(name="forward-proof", description="Forward proofs to Ticket-Proofs channel.")
 @app_commands.describe(reporter="Name of reporter", accused="Name of accused", message_id="Message ID of the proof")
 async def forward_proof_slash(interaction: discord.Interaction, reporter: str, accused: str, message_id: str):
     if not any(role.id == ALLOWED_ROLE_ID for role in interaction.user.roles):
