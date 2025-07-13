@@ -4,6 +4,7 @@ from discord import app_commands
 import os
 from keep_alive import keep_alive
 import datetime
+import re
 
 # === CONFIG ===
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -92,8 +93,14 @@ async def handle_forward_proof(ctx, reporter, accused, replied_msg):
 # --------- Emoji Say Handler ---------
 def resolve_emojis(message: discord.Message) -> str:
     content = message.content
-    for emoji in message.emojis:
-        content = content.replace(f":{emoji.name}:", str(emoji))
+
+    # Match <a:name:id> or <:name:id>
+    custom_emoji_pattern = r'<a?:\w+:\d+>'
+    matches = re.findall(custom_emoji_pattern, content)
+
+    for match in matches:
+        content = content.replace(match, match)  # Leave it as-is so it renders in embed
+
     return content
 
 # -------- Shared Say Handler --------
