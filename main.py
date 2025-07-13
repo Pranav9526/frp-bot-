@@ -215,10 +215,10 @@ async def jaillog(ctx, player_name: str = None, discord_user: discord.Member = N
         f"# PLAYER JAIL\n\n"
         f"> **`PLAYER NAME: {player_name}\n"
         f"> `DISCORD:` {discord_user.mention}  \n"
-        f"\n"
-        f"Was Prisoned For {minutes} Min's by {ctx.author.mention} \n"
-        f"\n"
-        f"Reason: {reason}"
+        f"> \n"
+        f"> Was Prisoned For {minutes} Min's by {ctx.author.mention} \n"
+        f"> \n"
+        f"> Reason: {reason}"
     )
 
     try:
@@ -396,10 +396,10 @@ async def jaillog_slash(interaction: discord.Interaction, player_name: str, disc
         f"# PLAYER JAIL\n\n"
         f"> **`PLAYER NAME: {player_name}\n"
         f"> `DISCORD:` {discord_user.mention}  \n"
-        f"\n"
-        f"Was Prisoned For {minutes} Min's by {interaction.user.mention} \n"
-        f"\n"
-        f"Reason: {reason}"
+        f"> \n"
+        f"> Was Prisoned For {minutes} Min's by {interaction.user.mention} \n"
+        f"> \n"
+        f"> Reason: {reason}"
     )
 
     try:
