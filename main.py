@@ -59,6 +59,7 @@ async def handle_forward_proof(ctx, reporter, accused, replied_msg):
         file = await attachment.to_file()
         if i == 0 and attachment.content_type.startswith("image"):
             image_preview = attachment.url
+            files.append(file)
         else:
             files.append(file)
 
