@@ -33,7 +33,6 @@ async def on_ready():
     try:
         await bot.tree.sync()  # Global sync
         print("✅ Globally synced all slash commands.")
-        print("✅ Bot is ready. Slash commands synced.")
     except Exception as e:
         print(f"Error syncing slash commands: {e}")
 
