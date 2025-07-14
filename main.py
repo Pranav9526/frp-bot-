@@ -335,16 +335,16 @@ async def say_slash(interaction: discord.Interaction, title: str, channel: disco
 # ----------- /sayembed -------------
 
 class EmbedModal(ui.Modal, title="📦 Create Embed"):
-
     title_input = ui.TextInput(label="Embed Title", style=TextStyle.short, required=True, max_length=256)
     desc_input = ui.TextInput(label="Description", style=TextStyle.paragraph, required=True, max_length=2000)
     footer_input = ui.TextInput(label="Footer (optional)", style=TextStyle.short, required=False)
     thumb_input = ui.TextInput(label="Thumbnail URL (optional)", style=TextStyle.short, required=False)
 
-    def __init__(self, bot, user):
+    def __init__(self, bot, user, replied_msg=None):
         super().__init__()
         self.bot = bot
         self.user = user
+        self.replied_msg = replied_msg  # ✅ Save it for later use
 
     async def on_submit(self, interaction: Interaction):
         if not any(role.id == SAY_ROLE_ID for role in interaction.user.roles):
@@ -357,6 +357,7 @@ class EmbedModal(ui.Modal, title="📦 Create Embed"):
             self.desc_input.value,
             self.footer_input.value,
             self.thumb_input.value,
+            self.replied_msg,  # ✅ pass it to the view
             interaction
         )
         await interaction.response.send_message("🎨 Choose color and channel below:", view=view, ephemeral=True)
@@ -418,12 +419,11 @@ class ColorDropdown(ui.Select):
     def __init__(self, parent_view):
         self.parent_view = parent_view
         options = [
-            discord.SelectOption(label="Blue", value="blue", emoji="🔵"),
             discord.SelectOption(label="Red", value="red", emoji="🔴"),
             discord.SelectOption(label="Green", value="green", emoji="🟢"),
             discord.SelectOption(label="Yellow", value="yellow", emoji="🟡"),
             discord.SelectOption(label="Purple", value="purple", emoji="🟣"),
-            discord.SelectOption(label="Cyan", value="cyan", emoji="📘")  # ✅ Added Cyan
+            discord.SelectOption(label="Cyan", value="cyan", emoji="🔵")  # ✅ Added Cyan
         ]
         super().__init__(placeholder="Choose Embed Color", min_values=1, max_values=1, options=options)
 
@@ -434,7 +434,6 @@ class ColorDropdown(ui.Select):
 
         color_map = {
             "red": Color.red(),
-            "blue": Color.blue(),
             "green": Color.green(),
             "yellow": Color.gold(),
             "purple": Color.purple(),
@@ -484,11 +483,16 @@ async def sayembed_ui(interaction: discord.Interaction):
         await interaction.response.send_message("❌ You don’t have permission to use this.", ephemeral=True)
         return
 
+    # ✅ Try to capture the replied message, if any
+    replied_msg = None
     try:
-        await interaction.response.send_modal(EmbedModal(bot, interaction.user))
-    except discord.NotFound:
-        # This happens if you took too long to trigger the modal
-        await interaction.followup.send("❌ Interaction expired. Please try again quickly.", ephemeral=True)
+        if interaction.channel and interaction.message and interaction.message.reference:
+            replied_msg = await interaction.channel.fetch_message(interaction.message.reference.message_id)
+    except:
+        pass
+
+    await interaction.response.send_modal(EmbedModal(bot, interaction.user, replied_msg))
+
 # ------------- /userinfo -------------
 
 @bot.tree.command(name="userinfo", description="Get information about a user.")
