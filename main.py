@@ -265,7 +265,6 @@ async def sync(ctx):
 
 # -------- help command ------------
 @bot.command(name="help")
-@bot.command(name="help")
 async def help_command(ctx):
     embed = discord.Embed(
         title="🤖 UCRP MANAGER – Help Guide",
@@ -273,12 +272,12 @@ async def help_command(ctx):
             "**UCRP MANAGER** is the official bot of **UNDERCITY ROLEPLAY (UCRP)**.\n"
             "It helps staff with proof handling, announcements, user tools, and more.\n\n"
             "### 📌 Commands\n"
-            "- `/forward-proof` or `!forwardproof` – Forward proof replies in tickets\n"
-            "- `/say` or `!say` – Send embed of a replied message\n"
-            "- `/sayembed` – Create custom embeds with title, message & color\n"
-            "- `/userinfo` or `!userinfo` – Get user info\n"
-            "- `/about` or `!about` – Info about the bot & UCRP\n"
-            "- `/help` or `!help` – Show this help message"
+            "- `/forward-proof` or `!forwardproof`\n"
+            "- `/say` or `!say`\n"
+            "- `/sayembed`\n"
+            "- `/userinfo` or `!userinfo`\n"
+            "- `/about` or `!about`\n"
+            "- `/help` or `!help`"
         ),
         color=discord.Color.from_rgb(0, 255, 255)
     )
