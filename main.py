@@ -375,7 +375,7 @@ class EmbedView(discord.ui.View):
         self.replied_msg = replied_msg
         self.interaction = interaction  # ✅ store interaction for use if needed
 
-        self.embed_color = discord.Color.cyan()
+        self.embed_color = discord.Color.from_rgb(0, 255, 255)
         self.channel = None
 
         # Add dropdowns or buttons here
