@@ -418,8 +418,8 @@ class EmbedView(discord.ui.View):
 
 
 class ColorDropdown(discord.ui.Select):
-    def __init__(self, view):
-        self.view = view
+    def __init__(self, custom_view):
+        self.custom_view = custom_view  # ✅ Use a different variable name
         options = [
             discord.SelectOption(label="Red", value="red"),
             discord.SelectOption(label="Green", value="green"),
@@ -428,7 +428,7 @@ class ColorDropdown(discord.ui.Select):
             discord.SelectOption(label="Purple", value="purple"),
             discord.SelectOption(label="Black", value="black"),
             discord.SelectOption(label="White", value="white"),
-            discord.SelectOption(label="Cyan", value="cyan")  # ✅ Replaced Blue with Cyan
+            discord.SelectOption(label="Cyan", value="cyan")
         ]
         super().__init__(placeholder="🎨 Choose a color", min_values=1, max_values=1, options=options)
 
@@ -441,13 +441,11 @@ class ColorDropdown(discord.ui.Select):
             "purple": discord.Color.purple(),
             "black": discord.Color.darker_grey(),
             "white": discord.Color.lighter_grey(),
-            "cyan": discord.Color.from_rgb(0, 255, 255)  # ✅ Add Cyan to color map
+            "cyan": discord.Color.from_rgb(0, 255, 255)
         }
 
-        self.view.embed_color = color_map[self.values[0]]
+        self.custom_view.embed_color = color_map[self.values[0]]
         await interaction.response.send_message(f"✅ Color set to {self.values[0].capitalize()}", ephemeral=True)
-
-
 
 class ChannelDropdown(ui.Select):
     def __init__(self, parent_view):
