@@ -394,7 +394,7 @@ class EmbedView(discord.ui.View):
             await interaction.response.send_message("❌ Please select a channel first.", ephemeral=True)
             return
 
-        embed = Embed(title=self.title, description=self.desc, color=self.color)
+        embed = discord.Embed(title=self.title, description=self.desc, color=self.embed_color)
         if self.footer:
             embed.set_footer(text=self.footer)
         if self.thumbnail:
