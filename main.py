@@ -300,7 +300,7 @@ async def about(ctx):
             "🔹 User tracking and embed customization\n\n"
             "🎮 **UNDERCITY ROLEPLAY (UCRP)** is not just a server — it's a serious RP experience built for dedicated roleplayers.\n"
             "With active law enforcement, gang/faction systems, realistic economy, and strict RP rules, UCRP offers the **ultimate roleplay journey** in the SAMP world.\n\n"
-            "👥 Join UCRP: [https://discord.gg/mCgAQcdZFE](https://discord.gg/mCgAQcdZFE)"
+            "👥 Join UCRP: https://discord.gg/mCgAQcdZFE"
         ),
         color=discord.Color.from_rgb(0, 255, 255)
     )
@@ -417,32 +417,36 @@ class EmbedView(discord.ui.View):
         await interaction.response.send_message(f"✅ Embed sent to {self.channel.mention}", ephemeral=True)
 
 
-class ColorDropdown(ui.Select):
-    def __init__(self, parent_view):
-        self.parent_view = parent_view
+class ColorDropdown(discord.ui.Select):
+    def __init__(self, view):
+        self.view = view
         options = [
-            discord.SelectOption(label="Red", value="red", emoji="🔴"),
-            discord.SelectOption(label="Green", value="green", emoji="🟢"),
-            discord.SelectOption(label="Yellow", value="yellow", emoji="🟡"),
-            discord.SelectOption(label="Purple", value="purple", emoji="🟣"),
-            discord.SelectOption(label="Cyan", value="cyan", emoji="🔵")  # ✅ Added Cyan
+            discord.SelectOption(label="Red", value="red"),
+            discord.SelectOption(label="Green", value="green"),
+            discord.SelectOption(label="Orange", value="orange"),
+            discord.SelectOption(label="Yellow", value="yellow"),
+            discord.SelectOption(label="Purple", value="purple"),
+            discord.SelectOption(label="Black", value="black"),
+            discord.SelectOption(label="White", value="white"),
+            discord.SelectOption(label="Cyan", value="cyan")  # ✅ Replaced Blue with Cyan
         ]
-        super().__init__(placeholder="Choose Embed Color", min_values=1, max_values=1, options=options)
+        super().__init__(placeholder="🎨 Choose a color", min_values=1, max_values=1, options=options)
 
-    async def callback(self, interaction: Interaction):
-        if interaction.user.id != self.parent_view.user.id:
-            await interaction.response.send_message("❌ You can’t use this.", ephemeral=True)
-            return
-
+    async def callback(self, interaction: discord.Interaction):
         color_map = {
-            "red": Color.red(),
-            "green": Color.green(),
-            "yellow": Color.gold(),
-            "purple": Color.purple(),
-            "cyan": Color.from_rgb(0, 255, 255)
+            "red": discord.Color.red(),
+            "green": discord.Color.green(),
+            "orange": discord.Color.orange(),
+            "yellow": discord.Color.gold(),
+            "purple": discord.Color.purple(),
+            "black": discord.Color.darker_grey(),
+            "white": discord.Color.lighter_grey(),
+            "cyan": discord.Color.from_rgb(0, 255, 255)  # ✅ Add Cyan to color map
         }
-        self.parent_view.color = color_map.get(self.values[0], Color.blue())
-        await interaction.response.send_message(f"🎨 Color set to **{self.values[0].title()}**", ephemeral=True)
+
+        self.view.embed_color = color_map[self.values[0]]
+        await interaction.response.send_message(f"✅ Color set to {self.values[0].capitalize()}", ephemeral=True)
+
 
 
 class ChannelDropdown(ui.Select):
@@ -636,7 +640,7 @@ async def about_slash(interaction: discord.Interaction):
             "🔹 User tracking and embed customization\n\n"
             "🎮 **UNDERCITY ROLEPLAY (UCRP)** is not just a server — it's a serious RP experience built for dedicated roleplayers.\n"
             "With active law enforcement, gang/faction systems, realistic economy, and strict RP rules, UCRP offers the **ultimate roleplay journey** in the SAMP world.\n\n"
-            "👥 Join UCRP: [https://discord.gg/mCgAQcdZFE](https://discord.gg/mCgAQcdZFE)"
+            "👥 Join UCRP: https://discord.gg/mCgAQcdZFE"
         ),
         color=discord.Color.from_rgb(0, 255, 255)
     )
