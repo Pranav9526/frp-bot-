@@ -26,7 +26,8 @@ intents.guilds = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
-
+# Remove default help command to avoid conflict
+bot.remove_command("help")
 
 @bot.event
 async def on_ready():
