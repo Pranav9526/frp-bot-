@@ -483,15 +483,13 @@ async def sayembed_ui(interaction: discord.Interaction):
         await interaction.response.send_message("❌ You don’t have permission to use this.", ephemeral=True)
         return
 
-    # ✅ Try to capture the replied message, if any
-    replied_msg = None
     try:
-        if interaction.channel and interaction.message and interaction.message.reference:
-            replied_msg = await interaction.channel.fetch_message(interaction.message.reference.message_id)
-    except:
-        pass
+        # ✅ Respond with modal within 3 seconds
+        await interaction.response.send_modal(EmbedModal(bot, interaction.user))
+    except discord.NotFound:
+        # If it fails because interaction expired
+        await interaction.followup.send("❌ The command took too long to respond. Please try again quickly.", ephemeral=True)
 
-    await interaction.response.send_modal(EmbedModal(bot, interaction.user, replied_msg))
 
 # ------------- /userinfo -------------
 
