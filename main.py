@@ -333,38 +333,41 @@ async def say_slash(interaction: discord.Interaction, title: str, channel: disco
         await interaction.response.send_message("❌ Could not fetch the message. Check the message ID.", ephemeral=True)
 
 # ----------- /sayembed -------------
+from discord import app_commands, ui, TextStyle, Interaction, Embed
+import discord
 
+# --- Modal to get basic input ---
 class EmbedModal(ui.Modal, title="📦 Create Embed"):
     title_input = ui.TextInput(label="Embed Title", style=TextStyle.short, required=True, max_length=256)
     desc_input = ui.TextInput(label="Description", style=TextStyle.paragraph, required=True, max_length=2000)
     footer_input = ui.TextInput(label="Footer (optional)", style=TextStyle.short, required=False)
     thumb_input = ui.TextInput(label="Thumbnail URL (optional)", style=TextStyle.short, required=False)
 
-    def __init__(self, bot, user, replied_msg=None):
+    def __init__(self, bot, user):
         super().__init__()
         self.bot = bot
         self.user = user
-        self.replied_msg = replied_msg  # ✅ Save it for later use
 
     async def on_submit(self, interaction: Interaction):
+        # ✅ Permission check (again for safety)
         if not any(role.id == SAY_ROLE_ID for role in interaction.user.roles):
             await interaction.response.send_message("❌ You don't have permission to use this.", ephemeral=True)
             return
 
         view = EmbedView(
-            self.bot, self.user,
-            self.title_input.value,
-            self.desc_input.value,
-            self.footer_input.value,
-            self.thumb_input.value,
-            self.replied_msg,  # ✅ pass it to the view
-            interaction
+            bot=self.bot,
+            user=self.user,
+            title=self.title_input.value,
+            desc=self.desc_input.value,
+            footer=self.footer_input.value,
+            thumbnail=self.thumb_input.value
         )
         await interaction.response.send_message("🎨 Choose color and channel below:", view=view, ephemeral=True)
 
 
-class EmbedView(discord.ui.View):
-    def __init__(self, bot, user, title, desc, footer, thumbnail, replied_msg, interaction):
+# --- View with dropdowns & button ---
+class EmbedView(ui.View):
+    def __init__(self, bot, user, title, desc, footer, thumbnail):
         super().__init__(timeout=180)
         self.bot = bot
         self.user = user
@@ -372,54 +375,37 @@ class EmbedView(discord.ui.View):
         self.desc = desc
         self.footer = footer
         self.thumbnail = thumbnail
-        self.replied_msg = replied_msg
-        self.interaction = interaction  # ✅ store interaction for use if needed
-
-        self.embed_color = discord.Color.from_rgb(0, 255, 255)
+        self.embed_color = discord.Color.from_rgb(0, 255, 255)  # Default = Cyan
         self.channel = None
 
-        # Add dropdowns or buttons here
         self.add_item(ColorDropdown(self))
         self.add_item(ChannelDropdown(self))
-        self.add_item(discord.ui.Button(label="✅ Send Embed", style=discord.ButtonStyle.success, custom_id="send_embed_button"))
 
-
-    @ui.button(label="✅ Send Embed", style=discord.ButtonStyle.green)
+    @ui.button(label="✅ Send Embed", style=discord.ButtonStyle.success)
     async def send_embed_button(self, interaction: Interaction, button: ui.Button):
         if interaction.user.id != self.user.id:
-            await interaction.response.send_message("❌ You're not allowed to use this button.", ephemeral=True)
+            await interaction.response.send_message("❌ You're not allowed to use this.", ephemeral=True)
             return
 
         if not self.channel:
             await interaction.response.send_message("❌ Please select a channel first.", ephemeral=True)
             return
 
-        embed = discord.Embed(title=self.title, description=self.desc, color=self.embed_color)
+        # Create the embed
+        embed = Embed(title=self.title, description=self.desc, color=self.embed_color)
         if self.footer:
             embed.set_footer(text=self.footer)
         if self.thumbnail:
             embed.set_thumbnail(url=self.thumbnail)
 
-        # Handle attachments if user replied to a message
-        files = []
-        if self.interaction.message.reference:
-            try:
-                replied_msg = await self.interaction.channel.fetch_message(self.interaction.message.reference.message_id)
-                if replied_msg.attachments:
-                    first_img = next((a for a in replied_msg.attachments if a.content_type and a.content_type.startswith("image")), None)
-                    if first_img:
-                        embed.set_image(url=first_img.url)
-                    files = [await a.to_file() for a in replied_msg.attachments]
-            except:
-                pass
-
-        await self.channel.send(embed=embed, files=files if files else None)
+        await self.channel.send(embed=embed)
         await interaction.response.send_message(f"✅ Embed sent to {self.channel.mention}", ephemeral=True)
 
 
-class ColorDropdown(discord.ui.Select):
-    def __init__(self, custom_view):
-        self.custom_view = custom_view  # ✅ Use a different variable name
+# --- Dropdown for color ---
+class ColorDropdown(ui.Select):
+    def __init__(self, parent_view):
+        self.parent_view = parent_view
         options = [
             discord.SelectOption(label="Red", value="red"),
             discord.SelectOption(label="Green", value="green"),
@@ -443,57 +429,43 @@ class ColorDropdown(discord.ui.Select):
             "white": discord.Color.lighter_grey(),
             "cyan": discord.Color.from_rgb(0, 255, 255)
         }
-
-        self.custom_view.embed_color = color_map[self.values[0]]
+        self.parent_view.embed_color = color_map[self.values[0]]
         await interaction.response.send_message(f"✅ Color set to {self.values[0].capitalize()}", ephemeral=True)
 
+
+# --- Dropdown for channels ---
 class ChannelDropdown(ui.Select):
     def __init__(self, parent_view):
         self.parent_view = parent_view
         guild = parent_view.bot.get_guild(GUILD_ID)
-        
-        # Limit to 25 channels max to avoid Discord error
-        channels = [
+
+        # Max 25 channels
+        options = [
             discord.SelectOption(label=ch.name, value=str(ch.id))
             for ch in guild.text_channels
             if ch.permissions_for(guild.me).send_messages
-        ][:25]  # ✅ Only keep first 25 channels
+        ][:25]
 
-        super().__init__(
-            placeholder="Choose a channel",
-            min_values=1,
-            max_values=1,
-            options=channels
-        )
+        super().__init__(placeholder="📨 Choose a channel", min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.parent_view.user.id:
-            await interaction.response.send_message("❌ You can’t use this.", ephemeral=True)
+            await interaction.response.send_message("❌ You can't use this.", ephemeral=True)
             return
 
         channel_id = int(self.values[0])
         self.parent_view.channel = self.parent_view.bot.get_channel(channel_id)
-        await interaction.response.send_message(
-            f"📨 Channel set to {self.parent_view.channel.mention}",
-            ephemeral=True
-        )
+        await interaction.response.send_message(f"✅ Channel set to {self.parent_view.channel.mention}", ephemeral=True)
 
 
-
-# ✅ Slash Command to launch UI embed creator
-@bot.tree.command(name="sayembed", description="Send a styled embed using a modal + UI")
+# --- Slash Command ---
+@bot.tree.command(name="sayembed", description="Send a styled embed using a modal + dropdowns")
 async def sayembed_ui(interaction: discord.Interaction):
     if not any(role.id == SAY_ROLE_ID for role in interaction.user.roles):
         await interaction.response.send_message("❌ You don’t have permission to use this.", ephemeral=True)
         return
 
-    try:
-        # ✅ Respond with modal within 3 seconds
-        await interaction.response.send_modal(EmbedModal(bot, interaction.user))
-    except discord.NotFound:
-        # If it fails because interaction expired
-        await interaction.followup.send("❌ The command took too long to respond. Please try again quickly.", ephemeral=True)
-
+    await interaction.response.send_modal(EmbedModal(bot, interaction.user))
 
 # ------------- /userinfo -------------
 
