@@ -363,8 +363,8 @@ class EmbedModal(ui.Modal, title="📦 Create Embed"):
         await interaction.response.send_message("🎨 Choose color and channel below:", view=view, ephemeral=True)
 
 
-class EmbedView(ui.View):
-    def __init__(self, bot, user, title, desc, footer, thumbnail, interaction):
+class EmbedView(discord.ui.View):
+    def __init__(self, bot, user, title, desc, footer, thumbnail, replied_msg, interaction):
         super().__init__(timeout=180)
         self.bot = bot
         self.user = user
@@ -372,15 +372,17 @@ class EmbedView(ui.View):
         self.desc = desc
         self.footer = footer
         self.thumbnail = thumbnail
-        self.image_url = None
-        self.interaction = interaction
-        self.color = Color.blue()
+        self.replied_msg = replied_msg
+        self.interaction = interaction  # ✅ store interaction for use if needed
+
+        self.embed_color = discord.Color.cyan()
         self.channel = None
 
-        # Add dropdowns and button
+        # Add dropdowns or buttons here
         self.add_item(ColorDropdown(self))
         self.add_item(ChannelDropdown(self))
-        self.add_item(ui.Button(label="✅ Send Embed", style=discord.ButtonStyle.green, custom_id="send_embed"))
+        self.add_item(discord.ui.Button(label="✅ Send Embed", style=discord.ButtonStyle.success, custom_id="send_embed_button"))
+
 
     @ui.button(label="✅ Send Embed", style=discord.ButtonStyle.green)
     async def send_embed_button(self, interaction: Interaction, button: ui.Button):
