@@ -262,6 +262,47 @@ async def sync(ctx):
     except Exception as e:
         await ctx.send(f"❌ Sync failed.\n`{e}`")
 
+# -------- help command ------------
+@bot.command(name="help")
+@bot.command(name="help")
+async def help_command(ctx):
+    embed = discord.Embed(
+        title="🤖 UCRP MANAGER – Help Guide",
+        description=(
+            "**UCRP MANAGER** is the official bot of **UNDERCITY ROLEPLAY (UCRP)**.\n"
+            "It helps staff with proof handling, announcements, user tools, and more.\n\n"
+            "### 📌 Commands\n"
+            "- `/forward-proof` or `!forwardproof` – Forward proof replies in tickets\n"
+            "- `/say` or `!say` – Send embed of a replied message\n"
+            "- `/sayembed` – Create custom embeds with title, message & color\n"
+            "- `/userinfo` or `!userinfo` – Get user info\n"
+            "- `/about` or `!about` – Info about the bot & UCRP\n"
+            "- `/help` or `!help` – Show this help message"
+        ),
+        color=discord.Color.from_rgb(0, 255, 255)
+    )
+    await ctx.send(embed=embed)
+
+
+#--------- about command -----------
+@bot.command(name="about")
+async def about(ctx):
+    embed = discord.Embed(
+        title="🔷 About UCRP MANAGER",
+        description=(
+            "**UCRP MANAGER** is the official bot of **UNDERCITY ROLEPLAY**, Kerala’s most immersive and professionally managed SAMP roleplay server.\n\n"
+            "Designed exclusively for UCRP staff, this bot empowers the team with advanced tools for:\n"
+            "🔹 Ticket proof management\n"
+            "🔹 Announcement broadcasting\n"
+            "🔹 Ban, jail & faction log automation\n"
+            "🔹 User tracking and embed customization\n\n"
+            "🎮 **UNDERCITY ROLEPLAY (UCRP)** is not just a server — it's a serious RP experience built for dedicated roleplayers.\n"
+            "With active law enforcement, gang/faction systems, realistic economy, and strict RP rules, UCRP offers the **ultimate roleplay journey** in the SAMP world.\n\n"
+            "👥 Join UCRP: [https://discord.gg/mCgAQcdZFE](https://discord.gg/mCgAQcdZFE)"
+        ),
+        color=discord.Color.from_rgb(0, 255, 255)
+    )
+    await ctx.send(embed=embed)
 
 # -------- Slash Commands --------
 @bot.tree.command(name="forward-proof", description="Forward proofs to Ticket-Proofs channel.")
@@ -438,6 +479,46 @@ async def fclog_slash(interaction: discord.Interaction, ign: str, reason: str, c
         await interaction.response.send_message("✅ FC log sent.", ephemeral=True)
     except Exception as e:
         await interaction.response.send_message(f"❌ Failed to send log.\n`{e}`", ephemeral=True)
+
+# -------- /help command ----------
+@bot.tree.command(name="help", description="Show a list of bot commands and their use")
+async def help_slash(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🤖 UCRP MANAGER – Help Guide",
+        description=(
+            "**UCRP MANAGER** is the official bot of **UNDERCITY ROLEPLAY (UCRP)**.\n"
+            "It helps staff with proof handling, announcements, user tools, and more.\n\n"
+            "### 📌 Commands\n"
+            "- `/forward-proof` or `!forwardproof` – Forward proof replies in tickets\n"
+            "- `/say` or `!say` – Send embed of a replied message\n"
+            "- `/sayembed` – Create custom embeds with title, message & color\n"
+            "- `/userinfo` or `!userinfo` – Get user info\n"
+            "- `/about` or `!about` – Info about the bot & UCRP\n"
+            "- `/help` or `!help` – Show this help message"
+        ),
+        color=discord.Color.from_rgb(0, 255, 255)
+    )
+    await interaction.response.send_message(embed=embed)
+
+# -------- /about command ---------
+@bot.tree.command(name="about", description="Information about UCRP MANAGER and UNDERCITY ROLEPLAY")
+async def about_slash(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🔷 About UCRP MANAGER",
+        description=(
+            "**UCRP MANAGER** is the official bot of **UNDERCITY ROLEPLAY**, Kerala’s most immersive and professionally managed SAMP roleplay server.\n\n"
+            "Designed exclusively for UCRP staff, this bot empowers the team with advanced tools for:\n"
+            "🔹 Ticket proof management\n"
+            "🔹 Announcement broadcasting\n"
+            "🔹 Ban, jail & faction log automation\n"
+            "🔹 User tracking and embed customization\n\n"
+            "🎮 **UNDERCITY ROLEPLAY (UCRP)** is not just a server — it's a serious RP experience built for dedicated roleplayers.\n"
+            "With active law enforcement, gang/faction systems, realistic economy, and strict RP rules, UCRP offers the **ultimate roleplay journey** in the SAMP world.\n\n"
+            "👥 Join UCRP: [https://discord.gg/mCgAQcdZFE](https://discord.gg/mCgAQcdZFE)"
+        ),
+        color=discord.Color.from_rgb(0, 255, 255)
+    )
+    await interaction.response.send_message(embed=embed)
 
 
 # -------- Keep Alive & Run --------
