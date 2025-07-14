@@ -448,21 +448,33 @@ class ChannelDropdown(ui.Select):
     def __init__(self, parent_view):
         self.parent_view = parent_view
         guild = parent_view.bot.get_guild(GUILD_ID)
+        
+        # Limit to 25 channels max to avoid Discord error
         channels = [
             discord.SelectOption(label=ch.name, value=str(ch.id))
             for ch in guild.text_channels
             if ch.permissions_for(guild.me).send_messages
-        ]
-        super().__init__(placeholder="Choose a channel", min_values=1, max_values=1, options=channels)
+        ][:25]  # ✅ Only keep first 25 channels
 
-    async def callback(self, interaction: Interaction):
+        super().__init__(
+            placeholder="Choose a channel",
+            min_values=1,
+            max_values=1,
+            options=channels
+        )
+
+    async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.parent_view.user.id:
             await interaction.response.send_message("❌ You can’t use this.", ephemeral=True)
             return
 
         channel_id = int(self.values[0])
         self.parent_view.channel = self.parent_view.bot.get_channel(channel_id)
-        await interaction.response.send_message(f"📨 Channel set to {self.parent_view.channel.mention}", ephemeral=True)
+        await interaction.response.send_message(
+            f"📨 Channel set to {self.parent_view.channel.mention}",
+            ephemeral=True
+        )
+
 
 
 # ✅ Slash Command to launch UI embed creator
