@@ -472,8 +472,11 @@ async def sayembed_ui(interaction: discord.Interaction):
         await interaction.response.send_message("❌ You don’t have permission to use this.", ephemeral=True)
         return
 
-    await interaction.response.send_modal(EmbedModal(bot, interaction.user))
-
+    try:
+        await interaction.response.send_modal(EmbedModal(bot, interaction.user))
+    except discord.NotFound:
+        # This happens if you took too long to trigger the modal
+        await interaction.followup.send("❌ Interaction expired. Please try again quickly.", ephemeral=True)
 # ------------- /userinfo -------------
 
 @bot.tree.command(name="userinfo", description="Get information about a user.")
