@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+from discord import ui, Interaction, TextStyle, Embed, Color
 import os
 from keep_alive import keep_alive
 import datetime
@@ -26,6 +27,7 @@ intents.guilds = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
+
 # Remove default help command to avoid conflict
 bot.remove_command("help")
 
@@ -331,45 +333,136 @@ async def say_slash(interaction: discord.Interaction, title: str, channel: disco
         await interaction.response.send_message("❌ Could not fetch the message. Check the message ID.", ephemeral=True)
 
 
-@bot.tree.command(name="sayembed", description="Send a styled embed to a channel.")
-@app_commands.describe(
-    title="Title of the embed",
-    description="Description/body of the embed",
-    color="Color name like red, blue, green (optional)",
-    channel="Channel where the embed should be sent"
-)
-async def sayembed(
-    interaction: discord.Interaction,
-    title: str,
-    description: str,
-    color: str,
-    channel: discord.TextChannel
-):
-    allowed_role_id = 1346488355486961694
-    if not any(role.id == allowed_role_id for role in interaction.user.roles):
-        return await interaction.response.send_message("❌ You don’t have permission to use this.", ephemeral=True)
+class EmbedModal(ui.Modal, title="📦 Create Embed"):
 
-    color_map = {
-        "red": discord.Color.red(),
-        "blue": discord.Color.blue(),
-        "green": discord.Color.green(),
-        "orange": discord.Color.orange(),
-        "yellow": discord.Color.gold(),
-        "purple": discord.Color.purple(),
-        "black": discord.Color.darker_grey(),
-        "white": discord.Color.lighter_grey(),
-    }
-    embed_color = color_map.get(color.lower(), discord.Color.blue())
+    title_input = ui.TextInput(label="Embed Title", style=TextStyle.short, required=True, max_length=256)
+    desc_input = ui.TextInput(label="Description", style=TextStyle.paragraph, required=True, max_length=2000)
+    footer_input = ui.TextInput(label="Footer (optional)", style=TextStyle.short, required=False)
+    thumb_input = ui.TextInput(label="Thumbnail URL (optional)", style=TextStyle.short, required=False)
 
-    embed = discord.Embed(title=title, description=description, color=embed_color)
-    embed.set_footer(text="UNDERCITY ROLEPLAY")
-    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1372059707694645360/1393578650015760516/491878536_605875318625766_7662976636025833179_n.png")
+    def __init__(self, bot, user):
+        super().__init__()
+        self.bot = bot
+        self.user = user
 
-    try:
-        await channel.send(embed=embed)
-        await interaction.response.send_message("✅ Embed sent successfully!", ephemeral=True)
-    except Exception as e:
-        await interaction.response.send_message(f"❌ Failed to send embed:\n`{str(e)}`", ephemeral=True)
+    async def on_submit(self, interaction: Interaction):
+        if not any(role.id == SAY_ROLE_ID for role in interaction.user.roles):
+            await interaction.response.send_message("❌ You don't have permission to use this.", ephemeral=True)
+            return
+
+        view = EmbedView(self.bot, self.user, self.title_input.value, self.desc_input.value, self.footer_input.value, self.thumb_input.value, interaction)
+        await interaction.response.send_message("🎨 Choose color and channel:", view=view, ephemeral=True)
+
+
+class EmbedView(ui.View):
+    def __init__(self, bot, user, title, desc, footer, thumbnail, interaction):
+        super().__init__(timeout=180)
+        self.bot = bot
+        self.user = user
+        self.title = title
+        self.desc = desc
+        self.footer = footer
+        self.thumbnail = thumbnail
+        self.image_url = None
+        self.interaction = interaction
+        self.color = Color.blue()
+        self.channel = None
+
+        # Dropdowns
+        self.add_item(ColorDropdown(self))
+        self.add_item(ChannelDropdown(self))
+
+        # Send button
+        self.add_item(ui.Button(label="✅ Send Embed", style=discord.ButtonStyle.green, custom_id="send_embed"))
+
+    @ui.button(label="✅ Send Embed", style=discord.ButtonStyle.green)
+    async def send_embed_button(self, interaction: Interaction, button: ui.Button):
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message("❌ You're not authorized to use this button.", ephemeral=True)
+            return
+
+        if not self.channel:
+            await interaction.response.send_message("❌ Please select a channel first.", ephemeral=True)
+            return
+
+        # Build embed
+        embed = Embed(title=self.title, description=self.desc, color=self.color)
+        if self.footer:
+            embed.set_footer(text=self.footer)
+        if self.thumbnail:
+            embed.set_thumbnail(url=self.thumbnail)
+
+        # Handle attachment from replied message
+        if self.interaction.message.reference:
+            replied_msg = await self.interaction.channel.fetch_message(self.interaction.message.reference.message_id)
+            if replied_msg.attachments:
+                first_img = next((a for a in replied_msg.attachments if a.content_type.startswith("image")), None)
+                if first_img:
+                    self.image_url = first_img.url
+                    embed.set_image(url=self.image_url)
+                    files = [await a.to_file() for a in replied_msg.attachments]
+                    await self.channel.send(embed=embed, files=files)
+                    await interaction.response.send_message(f"✅ Embed sent with images to {self.channel.mention}.", ephemeral=True)
+                    return
+
+        await self.channel.send(embed=embed)
+        await interaction.response.send_message(f"✅ Embed sent to {self.channel.mention}.", ephemeral=True)
+
+
+class ColorDropdown(ui.Select):
+    def __init__(self, view):
+        self.view = view
+        options = [
+            discord.SelectOption(label="Blue", value="blue", emoji="🔵"),
+            discord.SelectOption(label="Red", value="red", emoji="🔴"),
+            discord.SelectOption(label="Green", value="green", emoji="🟢"),
+            discord.SelectOption(label="Yellow", value="yellow", emoji="🟡"),
+            discord.SelectOption(label="Purple", value="purple", emoji="🟣")
+        ]
+        super().__init__(placeholder="Choose Embed Color", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: Interaction):
+        if interaction.user.id != self.view.user.id:
+            await interaction.response.send_message("❌ You can’t interact with this.", ephemeral=True)
+            return
+
+        color_map = {
+            "red": Color.red(),
+            "blue": Color.blue(),
+            "green": Color.green(),
+            "yellow": Color.gold(),
+            "purple": Color.purple()
+        }
+        self.view.color = color_map.get(self.values[0], Color.blue())
+        await interaction.response.send_message(f"🎨 Color set to **{self.values[0].title()}**", ephemeral=True)
+
+
+class ChannelDropdown(ui.Select):
+    def __init__(self, view):
+        self.view = view
+        guild = view.bot.get_guild(GUILD_ID)
+        channels = [
+            discord.SelectOption(label=ch.name, value=str(ch.id))
+            for ch in guild.text_channels if ch.permissions_for(guild.me).send_messages
+        ]
+        super().__init__(placeholder="Choose a channel", min_values=1, max_values=1, options=channels)
+
+    async def callback(self, interaction: Interaction):
+        if interaction.user.id != self.view.user.id:
+            await interaction.response.send_message("❌ You can’t interact with this.", ephemeral=True)
+            return
+        channel_id = int(self.values[0])
+        self.view.channel = self.view.bot.get_channel(channel_id)
+        await interaction.response.send_message(f"📨 Channel set to {self.view.channel.mention}", ephemeral=True)
+
+# Register the slash command
+@bot.tree.command(name="sayembed", description="Send an embed using a modal + dropdown UI")
+async def sayembed_ui(interaction: discord.Interaction):
+    if not any(role.id == SAY_ROLE_ID for role in interaction.user.roles):
+        await interaction.response.send_message("❌ You don’t have permission to use this.", ephemeral=True)
+        return
+
+    await interaction.response.send_modal(EmbedModal(bot, interaction.user))
 
 # ------------- /userinfo -------------
 
