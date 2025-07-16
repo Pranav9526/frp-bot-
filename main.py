@@ -343,31 +343,35 @@ class EmbedModal(ui.Modal, title="📦 Create Embed"):
     footer_input = ui.TextInput(label="Footer (optional)", style=TextStyle.short, required=False)
     thumb_input = ui.TextInput(label="Thumbnail URL (optional)", style=TextStyle.short, required=False)
 
-    def __init__(self, bot, user):
+    def __init__(self, bot, user, target_channel: discord.TextChannel, replied_msg=None):
         super().__init__()
         self.bot = bot
         self.user = user
+        self.replied_msg = replied_msg
+        self.target_channel = target_channel  # ✅ Store selected channel
+
 
     async def on_submit(self, interaction: Interaction):
-        # ✅ Permission check (again for safety)
         if not any(role.id == SAY_ROLE_ID for role in interaction.user.roles):
             await interaction.response.send_message("❌ You don't have permission to use this.", ephemeral=True)
             return
 
         view = EmbedView(
-            bot=self.bot,
-            user=self.user,
-            title=self.title_input.value,
-            desc=self.desc_input.value,
-            footer=self.footer_input.value,
-            thumbnail=self.thumb_input.value
+            self.bot, self.user,
+            self.title_input.value,
+            self.desc_input.value,
+            self.footer_input.value,
+            self.thumb_input.value,
+            self.replied_msg,
+            self.target_channel,  # ✅ pass selected channel here
+            interaction
         )
-        await interaction.response.send_message("🎨 Choose color and channel below:", view=view, ephemeral=True)
+        await interaction.response.send_message("🎨 Choose color below and confirm sending:", view=view, ephemeral=True)
 
 
 # --- View with dropdowns & button ---
-class EmbedView(ui.View):
-    def __init__(self, bot, user, title, desc, footer, thumbnail):
+class EmbedView(discord.ui.View):
+    def __init__(self, bot, user, title, desc, footer, thumbnail, replied_msg, channel, interaction):
         super().__init__(timeout=180)
         self.bot = bot
         self.user = user
@@ -375,11 +379,14 @@ class EmbedView(ui.View):
         self.desc = desc
         self.footer = footer
         self.thumbnail = thumbnail
-        self.embed_color = discord.Color.from_rgb(0, 255, 255)  # Default = Cyan
-        self.channel = None
+        self.replied_msg = replied_msg
+        self.interaction = interaction
+        self.channel = channel  # ✅ use selected channel
+        self.embed_color = discord.Color.from_rgb(0, 255, 255)
 
         self.add_item(ColorDropdown(self))
-        self.add_item(ChannelDropdown(self))
+        self.add_item(discord.ui.Button(label="✅ Send Embed", style=discord.ButtonStyle.success, custom_id="send_embed_button"))
+
 
     @ui.button(label="✅ Send Embed", style=discord.ButtonStyle.success)
     async def send_embed_button(self, interaction: Interaction, button: ui.Button):
@@ -459,13 +466,15 @@ class ChannelDropdown(ui.Select):
 
 
 # --- Slash Command ---
-@bot.tree.command(name="sayembed", description="Send a styled embed using a modal + dropdowns")
-async def sayembed_ui(interaction: discord.Interaction):
+@bot.tree.command(name="sayembed", description="Send a styled embed to a selected channel using a UI builder")
+@app_commands.describe(channel="The channel where the embed will be sent")
+async def sayembed_ui(interaction: discord.Interaction, channel: discord.TextChannel):
     if not any(role.id == SAY_ROLE_ID for role in interaction.user.roles):
         await interaction.response.send_message("❌ You don’t have permission to use this.", ephemeral=True)
         return
 
-    await interaction.response.send_modal(EmbedModal(bot, interaction.user))
+    # Store the selected channel inside the interaction context using EmbedModal
+    await interaction.response.send_modal(EmbedModal(bot, interaction.user, target_channel=channel))
 
 # ------------- /userinfo -------------
 
