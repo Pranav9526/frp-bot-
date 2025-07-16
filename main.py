@@ -306,6 +306,17 @@ async def about(ctx):
     )
     await ctx.send(embed=embed)
 
+# ---------- DM USER COMMAND PREFIX --------------
+@bot.command(name="dm")
+async def dm_embed_prefix(ctx, user: discord.User):
+    if not any(role.id == SAY_ROLE_ID for role in ctx.author.roles):
+        await ctx.reply("❌ You don’t have permission to use this.")
+        return
+
+    await ctx.reply("📨 Please respond to the popup to compose the embed.", delete_after=10)
+    await ctx.send_modal(DmEmbedModal(bot, ctx.author, user))
+
+
 # -------- Slash Commands --------
 @bot.tree.command(name="forward-proof", description="Forward proofs to Ticket-Proofs channel.")
 @app_commands.describe(reporter="Name of reporter", accused="Name of accused", message_id="Message ID of the proof")
@@ -622,6 +633,50 @@ async def about_slash(interaction: discord.Interaction):
         color=discord.Color.from_rgb(0, 255, 255)
     )
     await interaction.response.send_message(embed=embed)
+
+
+# ---------- DM USER FEATURE ----------- 
+
+class DmEmbedModal(ui.Modal, title="📨 DM Embed Builder"):
+    title_input = ui.TextInput(label="Title (optional)", style=TextStyle.short, required=False)
+    desc_input = ui.TextInput(label="Description (optional)", style=TextStyle.paragraph, required=False)
+    footer_input = ui.TextInput(label="Footer (optional)", style=TextStyle.short, required=False)
+    thumb_input = ui.TextInput(label="Thumbnail URL (optional)", style=TextStyle.short, required=False)
+
+    def __init__(self, bot, sender, target_user):
+        super().__init__()
+        self.bot = bot
+        self.sender = sender
+        self.target_user = target_user
+
+    async def on_submit(self, interaction: Interaction):
+        embed = discord.Embed(
+            title=self.title_input.value or None,
+            description=self.desc_input.value or None,
+            color=discord.Color.from_rgb(0, 255, 255)
+        )
+        if self.footer_input.value:
+            embed.set_footer(text=self.footer_input.value)
+        if self.thumb_input.value:
+            embed.set_thumbnail(url=self.thumb_input.value)
+
+        try:
+            await self.target_user.send(embed=embed)
+            await interaction.response.send_message(f"✅ DM sent to {self.target_user.mention}", ephemeral=True)
+        except discord.Forbidden:
+            await interaction.response.send_message("❌ Cannot send DM. The user might have DMs closed.", ephemeral=True)
+
+
+# Slash command version
+dm_command = app_commands.Command
+@bot.tree.command(name="dm", description="DM a user with a custom embed")
+@app_commands.describe(user="The user to DM")
+async def dm_embed_ui(interaction: discord.Interaction, user: discord.User):
+    if not any(role.id == SAY_ROLE_ID for role in interaction.user.roles):
+        await interaction.response.send_message("❌ You don’t have permission to use this.", ephemeral=True)
+        return
+
+    await interaction.response.send_modal(DmEmbedModal(bot, interaction.user, user))
 
 
 # -------- Keep Alive & Run --------
