@@ -26,7 +26,8 @@ intents.message_content = True
 intents.guilds = True
 intents.members = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents, allowed_mentions=discord.AllowedMentions(everyone=False, roles=True, users=True))
+
 
 # Remove default help command to avoid conflict
 bot.remove_command("help")
@@ -315,6 +316,17 @@ async def dm_embed_prefix(ctx, user: discord.User):
 
     await ctx.reply("📨 Please respond to the popup to compose the embed.", delete_after=10)
     await ctx.send_modal(DmEmbedModal(bot, ctx.author, user))
+
+# ----------- error handling ---------------
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ You don't have permission to use this command.")
+    elif isinstance(error, commands.CommandNotFound):
+        pass  # Ignore unknown commands
+    else:
+        await ctx.send("❌ An unexpected error occurred.")
+        print(f"[ERROR] {error}")
 
 
 # -------- Slash Commands --------
@@ -678,6 +690,18 @@ async def dm_embed_ui(interaction: discord.Interaction, user: discord.User):
 
     await interaction.response.send_modal(DmEmbedModal(bot, interaction.user, user))
 
+# ------------ error handling -----------
+
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error):
+    await interaction.response.send_message("❌ An error occurred while executing the command.", ephemeral=True)
+    print(f"[Slash ERROR] {error}")
+
+# ------------ SERVER WHITELIST ----------
+@bot.event
+async def on_guild_join(guild):
+    if guild.id != YOUR_SERVER_ID:
+        await guild.leave()
 
 # -------- Keep Alive & Run --------
 keep_alive()
