@@ -385,8 +385,6 @@ class EmbedView(discord.ui.View):
         self.embed_color = discord.Color.from_rgb(0, 255, 255)
 
         self.add_item(ColorDropdown(self))
-        self.add_item(discord.ui.Button(label="✅ Send Embed", style=discord.ButtonStyle.success, custom_id="send_embed_button"))
-
 
     @ui.button(label="✅ Send Embed", style=discord.ButtonStyle.success)
     async def send_embed_button(self, interaction: Interaction, button: ui.Button):
