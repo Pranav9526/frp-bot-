@@ -7,6 +7,7 @@ from keep_alive import keep_alive
 from discord.ui import View, Button
 import datetime
 import asyncio
+import traceback
 import re
 import logging
 logging.basicConfig(level=logging.ERROR)
@@ -821,13 +822,17 @@ async def on_app_command_error(interaction: discord.Interaction, error):
 
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    # Print the full error to your console
+    traceback.print_exception(type(error), error, error.__traceback__)
+    
+    # Send error message to user
     try:
         if interaction.response.is_done():
             await interaction.followup.send("❌ An error occurred while executing the command.", ephemeral=True)
         else:
             await interaction.response.send_message("❌ An error occurred while executing the command.", ephemeral=True)
     except Exception as e:
-        print("Failed to send error message:", e)
+        print("❌ Failed to send error message:", e)
 
 
 # ------------ SERVER WHITELIST ----------
