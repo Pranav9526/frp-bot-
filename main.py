@@ -726,9 +726,10 @@ class CancelPollButton(Button):
         await interaction.message.delete()
         await interaction.response.send_message("✅ Poll has been cancelled.", ephemeral=True)
 
-class PollView(View):
-    def __init__(self, options, poll_data, timeout=None):
-        super().__init__(timeout=timeout)
+class PollView(discord.ui.View):
+    def __init__(self, options, poll_data, bot, timeout_seconds=60):
+        super().__init__(timeout=timeout_seconds)
+        self.options = options
         self.poll_data = poll_data
         self.bot = bot
         poll_id = poll_data["id"]
