@@ -745,6 +745,7 @@ class PollModal(discord.ui.Modal, title="Create a Poll"):
                 self.votes = {}
                 self.options = options
                 self.author_id = author_id
+                self.multi_vote = multi_vote
 
                 for i, opt in enumerate(options):
                     self.add_item(self.make_button(i, opt))
@@ -782,7 +783,7 @@ class PollModal(discord.ui.Modal, title="Create a Poll"):
                     await interaction.message.delete()
                     await interaction.response.send_message("Poll cancelled.", ephemeral=True)
 
-        view = PollView(options, self.author.id)
+        view = PollView(options, self.author.id, self.multi_vote)
         embed = discord.Embed(title="🗳️ Poll", description=self.question.value, color=discord.Color.blurple())
         for i, opt in enumerate(options):
             embed.add_field(name=f"{i+1}\u20e3", value=opt, inline=False)
@@ -794,7 +795,11 @@ class PollModal(discord.ui.Modal, title="Create a Poll"):
 
         embed.add_field(name="👥 Multi-vote", value="Enabled" if self.multi_vote else "Disabled", inline=True)
         poll_message = await interaction.channel.send(embed=embed, view=view)
-        await interaction.response.send_message("Poll created!", ephemeral=True)
+        try:
+            await interaction.response.send_message("Poll created!", ephemeral=True)
+        except discord.InteractionResponded:
+            await interaction.followup.send("Poll created!", ephemeral=True)
+
 
         if end_time:
             await asyncio.sleep((end_time - datetime.utcnow()).total_seconds())
