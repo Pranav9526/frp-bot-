@@ -751,6 +751,7 @@ class PollView(View):
         self.add_item(CancelPollButton(poll_data["author_id"]))
 
     async def on_timeout(self):
+        # Calculate results
         results = {}
         for votes in self.poll_data["votes"].values():
             for vote in votes:
@@ -758,6 +759,7 @@ class PollView(View):
 
         result_lines = [f"**{opt}** – {results.get(opt, 0)} vote(s)" for opt in self.poll_data["options"]]
 
+        # Create results embed
         embed = discord.Embed(
             title="📊 Poll Results",
             description="\n".join(result_lines),
@@ -765,12 +767,33 @@ class PollView(View):
         )
         embed.set_footer(text="This poll has ended.")
 
+        # Send results to log channel
         log_channel = self.bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
             await log_channel.send(embed=embed)
 
+        # Delete the original poll message
+        if self.message: # 'self.message' will be set when the view is sent
+            try:
+                await self.message.delete()
+            except discord.NotFound:
+                print("Poll message not found, likely already deleted.")
+            except discord.Forbidden:
+                print("Bot does not have permissions to delete the poll message.")
+            except Exception as e:
+                print(f"An error occurred while deleting the poll message: {e}")
+
 
 # Slash command to create a poll
+# Assuming 'bot' is your discord.ext.commands.Bot instance
+# Replace 'bot' with your actual bot variable if it's named differently
+# And make sure you have LOG_CHANNEL_ID defined.
+
+# Example placeholder for bot and LOG_CHANNEL_ID if not already defined:
+# from discord.ext import commands
+# bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
+# LOG_CHANNEL_ID = 123456789012345678 # Replace with your actual log channel ID
+
 @bot.tree.command(name="poll", description="Create a poll with up to 10 options.")
 @app_commands.describe(
     question="The question to ask",
@@ -802,7 +825,7 @@ async def poll(interaction: discord.Interaction, question: str, options: str, du
                 timeout_seconds = num * 60
             else:
                 raise ValueError
-        except:
+        except (ValueError, IndexError):
             await interaction.response.send_message("❌ Invalid duration format. Use formats like `1d`, `2h`, `30m`, or `never`.", ephemeral=True)
             return
 
@@ -825,7 +848,10 @@ async def poll(interaction: discord.Interaction, question: str, options: str, du
     embed.set_footer(text=f"Poll started by {interaction.user.display_name}")
 
     view = PollView(option_list, poll_data, bot, timeout_seconds)
+    # Store the message reference in the view
     await interaction.response.send_message(embed=embed, view=view)
+    message = await interaction.original_response()
+    view.message = message # Assign the message to the view
 
 # Sync the commands
 @bot.event
