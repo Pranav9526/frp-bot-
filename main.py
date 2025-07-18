@@ -50,6 +50,33 @@ async def on_ready():
 def format_datetime(dt: datetime.datetime):
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
+# ------- JOIN DM --------------------
+@bot.event
+async def on_member_join(member: discord.Member):
+    if member.bot:
+        return  # Skip bots
+
+    embed = discord.Embed(
+        title="Welcome to UNDERCITY ROLEPLAY <a:emoji_86:1369557989618614332>",
+        description=(
+            "<a:Animated_Arrow_Bluelite:1395826655368577134> Head to <#1359819992383885322> and attend a whitelist **interview** with an admin.\n"
+            "<a:Animated_Arrow_Bluelite:1395826655368577134> Once **approved**, get the **server IP** from <#1346488630822174721>.\n"
+            "<a:Animated_Arrow_Bluelite:1395826655368577134> Use the IP to join the game and register your in-game name.\n"
+            "<a:Animated_Arrow_Bluelite:1395826655368577134> Then go to <#1347888335758164049> and apply for **in-game whitelist** using the format given there.\n\n"
+            "🔐 Make sure you follow the steps in order. Only approved users will receive access to RP.\n\n"
+            "Good luck and welcome again!"
+        ),
+        color=discord.Color.teal()
+    )
+    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1372059707694645360/1395823720647364638/image.png")
+    embed.set_footer(text="UNDERCITY ROLEPLAY")
+
+    try:
+        await member.send(embed=embed)
+        print(f"✅ Sent whitelist DM to {member.name}")
+    except discord.Forbidden:
+        print(f"❌ Could not DM {member.name} (DMs disabled)")
+
 # -------- Shared Forwardproof Handler --------
 async def handle_forward_proof(ctx, reporter, accused, replied_msg):
     is_interaction = isinstance(ctx, discord.Interaction)
