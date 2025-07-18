@@ -4,7 +4,8 @@ from discord import app_commands
 from discord import ui, Interaction, TextStyle, Embed, Color
 import os
 from keep_alive import keep_alive
-from datetime import datetime, timedelta
+import datetime
+from datetime import timedelta
 import asyncio
 import re
 import logging
