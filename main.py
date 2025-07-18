@@ -697,101 +697,113 @@ async def dm_embed_ui(interaction: discord.Interaction, user: discord.User):
 
 # ------------ /poll feature -------------
 
+class PollButton(Button):
+    def __init__(self, label, poll_id):
+        super().__init__(label=label, style=discord.ButtonStyle.primary, custom_id=f"poll_{poll_id}_{label}")
+        self.poll_id = poll_id
+        self.label_text = label
+
+    async def callback(self, interaction: discord.Interaction):
+        poll_data = self.view.poll_data
+        voter_id = interaction.user.id
+        if poll_data["multiple_votes"] is False and voter_id in poll_data["votes"]:
+            await interaction.response.send_message("❌ You have already voted!", ephemeral=True)
+            return
+        poll_data["votes"].setdefault(voter_id, []).append(self.label_text)
+        await interaction.response.send_message(f"✅ You voted for **{self.label_text}**", ephemeral=True)
+
+class CancelPollButton(Button):
+    def __init__(self, author_id):
+        super().__init__(label="Cancel Poll", style=discord.ButtonStyle.danger)
+        self.author_id = author_id
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("❌ Only the poll creator can cancel this poll.", ephemeral=True)
+            return
+        self.view.stop()
+        await interaction.message.delete()
+        await interaction.response.send_message("✅ Poll has been cancelled.", ephemeral=True)
+
+class PollView(View):
+    def __init__(self, options, poll_data, timeout=None):
+        super().__init__(timeout=timeout)
+        self.poll_data = poll_data
+        poll_id = poll_data["id"]
+        for option in options:
+            self.add_item(PollButton(option, poll_id))
+        self.add_item(CancelPollButton(poll_data["author_id"]))
+
+    async def on_timeout(self):
+        results = {}
+        for votes in self.poll_data["votes"].values():
+            for vote in votes:
+                results[vote] = results.get(vote, 0) + 1
+        result_lines = [f"**{opt}** – {results.get(opt, 0)} vote(s)" for opt in self.poll_data["options"]]
+        embed = discord.Embed(
+            title="📊 Poll Results",
+            description="\n".join(result_lines),
+            color=discord.Color.green()
+        )
+        embed.set_footer(text="This poll has ended.")
+        log_channel = self.poll_data["channel"].bot.get_channel(LOG_CHANNEL_ID)
+        if log_channel:
+            await log_channel.send(embed=embed)
+
 @bot.tree.command(name="poll", description="Create a poll with up to 10 options.")
 @app_commands.describe(
-    question="The poll question",
-    options="Comma-separated options (2 to 10)",
-    duration="Time limit like 1d, 2h, 30m or 'never'",
-    multiple_votes="Allow multiple votes (yes or no)"
+    question="The question to ask",
+    options="Comma-separated list of 2–10 options",
+    duration="How long the poll should last (e.g., 1d, 2h, 30m, never)",
+    multiple_votes="Allow multiple votes per user (yes/no)"
 )
-async def poll(interaction: discord.Interaction, question: str, options: str, duration: str, multiple_votes: str):
-    # Check options
-    option_list = [opt.strip() for opt in options.split(",")]
-    if not (2 <= len(option_list) <= 10):
-        await interaction.response.send_message("You must provide between 2 and 10 options.", ephemeral=True)
+async def poll(interaction: discord.Interaction, question: str, options: str, duration: str = "5m", multiple_votes: str = "no"):
+    option_list = [opt.strip() for opt in options.split(",") if opt.strip()]
+    if len(option_list) < 2 or len(option_list) > 10:
+        await interaction.response.send_message("❌ Please provide between 2 and 10 options.", ephemeral=True)
         return
 
-    # Check duration
+    if multiple_votes.lower() not in ["yes", "no"]:
+        await interaction.response.send_message("❌ Please specify `yes` or `no` for multiple_votes.", ephemeral=True)
+        return
+
+    # Parse duration
+    timeout_seconds = None
     if duration.lower() != "never":
-        time_pattern = r"(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?"
-        match = re.match(time_pattern, duration.lower())
-        if not match:
-            await interaction.response.send_message("Invalid duration format. Use formats like `1d`, `2h`, `30m`, or `never`.", ephemeral=True)
+        try:
+            num = int(duration[:-1])
+            unit = duration[-1]
+            if unit == "d":
+                timeout_seconds = num * 86400
+            elif unit == "h":
+                timeout_seconds = num * 3600
+            elif unit == "m":
+                timeout_seconds = num * 60
+            else:
+                raise ValueError
+        except:
+            await interaction.response.send_message("❌ Invalid duration format. Use formats like 1d, 2h, 30m or 'never'.", ephemeral=True)
             return
-        days, hours, minutes = map(lambda x: int(x) if x else 0, match.groups())
-        end_time = datetime.utcnow() + timedelta(days=days, hours=hours, minutes=minutes)
-    else:
-        end_time = None
 
-    allow_multiple = multiple_votes.lower() in ['yes', 'true', 'allow', 'y']
+    # Create poll
+    poll_id = str(interaction.id)
+    poll_data = {
+        "id": poll_id,
+        "author_id": interaction.user.id,
+        "options": option_list,
+        "votes": {},
+        "multiple_votes": multiple_votes.lower() == "yes",
+        "channel": interaction.channel
+    }
 
-    # Create view with buttons
-    class PollButton(discord.ui.Button):
-        def __init__(self, label, index):
-            super().__init__(label=label, style=discord.ButtonStyle.primary, custom_id=f"poll_option_{index}")
-            self.index = index
-
-        async def callback(self, interaction_button: discord.Interaction):
-            voter_id = interaction_button.user.id
-            if not allow_multiple and any(voter_id in v for v in votes.values()):
-                await interaction_button.response.send_message("You have already voted!", ephemeral=True)
-                return
-
-            votes[self.index].add(voter_id)
-            await interaction_button.response.send_message("Vote recorded!", ephemeral=True)
-
-    class CancelButton(discord.ui.Button):
-        def __init__(self):
-            super().__init__(label="Cancel", style=discord.ButtonStyle.danger, custom_id="cancel_poll")
-
-        async def callback(self, interaction_button: discord.Interaction):
-            if interaction_button.user != interaction.user:
-                await interaction_button.response.send_message("Only the poll creator can cancel.", ephemeral=True)
-                return
-            await poll_message.delete()
-            await interaction_button.response.send_message("Poll cancelled.", ephemeral=True)
-
-    class PollView(discord.ui.View):
-        def __init__(self, timeout=None):
-            super().__init__(timeout=timeout)
-            for i, opt in enumerate(option_list):
-                self.add_item(PollButton(label=opt, index=i))
-            self.add_item(CancelButton())
-
-    # Votes store
-    votes = {i: set() for i in range(len(option_list))}
-
-    embed = discord.Embed(title="📊 Poll", description=question, color=discord.Color.blue())
-    for i, opt in enumerate(option_list):
-        embed.add_field(name=f"{i+1}. {opt}", value="\u200b", inline=False)
-
-    if end_time:
-        embed.set_footer(text=f"Poll ends at {end_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
-        timeout_seconds = (end_time - datetime.utcnow()).total_seconds()
-    else:
-        timeout_seconds = None
-        embed.set_footer(text=f"No end time (manual closure)")
-
-    view = PollView(timeout=timeout_seconds)
+    embed = discord.Embed(
+        title="📊 New Poll",
+        description=f"**{question}**\n\n" + "\n".join([f"{i+1}. {opt}" for i, opt in enumerate(option_list)]),
+        color=discord.Color.blue()
+    )
+    embed.set_footer(text=f"Poll started by {interaction.user.display_name}")
+    view = PollView(option_list, poll_data, timeout=timeout_seconds)
     await interaction.response.send_message(embed=embed, view=view)
-    poll_message = await interaction.original_response()
-
-    # Wait for timeout and post results
-    async def end_poll():
-        await asyncio.sleep(timeout_seconds)
-        result_embed = discord.Embed(title="📊 Poll Results", description=question, color=discord.Color.green())
-        for i, opt in enumerate(option_list):
-            result_embed.add_field(name=f"{i+1}. {opt}", value=f"{len(votes[i])} votes", inline=False)
-
-        log_channel = interaction.guild.get_channel(1395449524570423387)
-        if log_channel:
-            await log_channel.send(embed=result_embed)
-
-        await poll_message.edit(view=None)
-
-    if end_time:
-        bot.loop.create_task(end_poll())
-
 
 # Sync the commands
 @bot.event
