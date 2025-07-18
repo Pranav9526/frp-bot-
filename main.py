@@ -803,7 +803,7 @@ async def poll(interaction: discord.Interaction, question: str, options: str, du
         color=discord.Color.blue()
     )
     embed.set_footer(text=f"Poll started by {interaction.user.display_name}")
-    view = PollView(option_list, poll_data, bot, timeout=timeout_seconds)
+    view = PollView(option_list, poll_data, bot, timeout_seconds)
     await interaction.response.send_message(embed=embed, view=view)
 
 # Sync the commands
@@ -820,9 +820,15 @@ async def on_app_command_error(interaction: discord.Interaction, error):
 # ------------ error handling -----------
 
 @bot.tree.error
-async def on_app_command_error(interaction: discord.Interaction, error):
-    await interaction.response.send_message("❌ An error occurred while executing the command.", ephemeral=True)
-    print(f"[Slash ERROR] {error}")
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    try:
+        if interaction.response.is_done():
+            await interaction.followup.send("❌ An error occurred while executing the command.", ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ An error occurred while executing the command.", ephemeral=True)
+    except Exception as e:
+        print("Failed to send error message:", e)
+
 
 # ------------ SERVER WHITELIST ----------
 @bot.event
