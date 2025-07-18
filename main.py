@@ -7,6 +7,8 @@ from keep_alive import keep_alive
 import datetime
 import asyncio
 import re
+import logging
+logging.basicConfig(level=logging.ERROR)
 
 # === CONFIG ===
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -824,6 +826,11 @@ async def poll(interaction: discord.Interaction, duration: str, multi_vote: bool
 async def on_ready():
     await bot.tree.sync()
     print(f"Bot is ready: {bot.user}")
+
+@bot.event
+async def on_app_command_error(interaction: discord.Interaction, error):
+    await interaction.response.send_message("An unexpected error occurred.", ephemeral=True)
+    print(f"App Command Error: {error}")
 
 # ------------ error handling -----------
 
