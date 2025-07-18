@@ -797,7 +797,7 @@ async def poll(interaction: discord.Interaction, question: str, options: str, du
     }
 
     embed = discord.Embed(
-        title="📊 New Poll",
+        title="=Poll 📊",
         description=f"**{question}**\n\n" + "\n".join([f"{i+1}. {opt}" for i, opt in enumerate(option_list)]),
         color=discord.Color.blue()
     )
