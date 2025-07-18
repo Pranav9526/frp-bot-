@@ -732,16 +732,21 @@ class PollView(discord.ui.View):
         self.options = options
         self.poll_data = poll_data
         self.bot = bot
+        self.message = None  # We'll assign this later when the poll message is sent
+
         poll_id = poll_data["id"]
         for option in options:
             self.add_item(PollButton(option, poll_id))
         self.add_item(CancelPollButton(poll_data["author_id"]))
 
     async def on_timeout(self):
+        # Count votes
         results = {}
         for votes in self.poll_data["votes"].values():
             for vote in votes:
                 results[vote] = results.get(vote, 0) + 1
+
+        # Prepare result embed
         result_lines = [f"**{opt}** – {results.get(opt, 0)} vote(s)" for opt in self.poll_data["options"]]
         embed = discord.Embed(
             title="📊 Poll Results",
@@ -749,9 +754,19 @@ class PollView(discord.ui.View):
             color=discord.Color.green()
         )
         embed.set_footer(text="This poll has ended.")
+
+        # Send results to log channel
         log_channel = self.bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
             await log_channel.send(embed=embed)
+
+        # Delete the poll message
+        try:
+            if self.message:
+                await self.message.delete()
+        except Exception as e:
+            print(f"[PollView] Error deleting poll message: {e}")
+
 
 @bot.tree.command(name="poll", description="Create a poll with up to 10 options.")
 @app_commands.describe(
@@ -800,13 +815,14 @@ async def poll(interaction: discord.Interaction, question: str, options: str, du
     }
 
     embed = discord.Embed(
-        title="=Poll 📊",
+        title="Poll 📊",
         description=f"**{question}**\n\n" + "\n".join([f"{i+1}. {opt}" for i, opt in enumerate(option_list)]),
         color=discord.Color.blue()
     )
     embed.set_footer(text=f"Poll started by {interaction.user.display_name}")
     view = PollView(option_list, poll_data, bot, timeout_seconds)
-    await interaction.response.send_message(embed=embed, view=view)
+    await interaction.response.send_message(embed=poll_embed, view=view)
+    view.message = await interaction.original_response()
 
 # Sync the commands
 @bot.event
