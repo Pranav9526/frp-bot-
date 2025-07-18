@@ -732,12 +732,13 @@ class PollView(discord.ui.View):
         self.poll_data = poll_data
         self.bot = bot
         self.timeout_seconds = timeout_seconds
-        self.message = None  # This will be set after sending the message
+        self.message = None  # Will be set after sending the message
         self.options = options
-        self.add_item(PollButton(option, poll_data))
 
         for idx, option in enumerate(options):
             self.add_item(PollButton(label=option, index=idx, poll_data=poll_data))
+
+        self.add_item(CancelPollButton(poll_data["author_id"]))  # Add cancel button if needed
 
     async def on_timeout(self):
         # Disable all buttons
