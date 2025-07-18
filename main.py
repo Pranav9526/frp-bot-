@@ -755,13 +755,24 @@ class PollView(discord.ui.View):
         log_channel = self.bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
             await log_channel.send(embed=embed)
+        # 🟡 DEBUG: Check if message is set
+        print(f"on_timeout triggered. Message = {self.message}")
+
 
         # Delete poll message after timeout
         if self.message:
             try:
+                await asyncio.sleep(1)  # Optional: prevents race condition
                 await self.message.delete()
+                print("Poll message deleted successfully.")
             except discord.NotFound:
-                pass
+                print("Poll message already deleted.")
+            except discord.Forbidden:
+                print("Missing permission to delete poll message.")
+            except Exception as e:
+                print(f"Failed to delete poll message: {e}")
+        else:
+            print("Poll message not set — nothing to delete.")
 
 @bot.tree.command(name="poll", description="Create a poll with up to 10 options.")
 @app_commands.describe(
