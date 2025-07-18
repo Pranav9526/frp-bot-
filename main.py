@@ -707,7 +707,7 @@ class PollButton(Button):
     async def callback(self, interaction: discord.Interaction):
         poll_data = self.view.poll_data
         voter_id = interaction.user.id
-        if not poll_data["multiple_votes"] and voter_id in poll_data["votes"]:
+        if poll_data["multiple_votes"] is False and voter_id in poll_data["votes"]:
             await interaction.response.send_message("❌ You have already voted!", ephemeral=True)
             return
         poll_data["votes"].setdefault(voter_id, []).append(self.label_text)
@@ -722,9 +722,9 @@ class CancelPollButton(Button):
         if interaction.user.id != self.author_id:
             await interaction.response.send_message("❌ Only the poll creator can cancel this poll.", ephemeral=True)
             return
+        self.view.stop()
         await interaction.message.delete()
         await interaction.response.send_message("✅ Poll has been cancelled.", ephemeral=True)
-        self.view.stop()
 
 class PollView(discord.ui.View):
     def __init__(self, options, poll_data, bot, timeout_seconds=60):
@@ -732,7 +732,6 @@ class PollView(discord.ui.View):
         self.options = options
         self.poll_data = poll_data
         self.bot = bot
-        self.message = None  # set after sending
         poll_id = poll_data["id"]
         for option in options:
             self.add_item(PollButton(option, poll_id))
@@ -743,7 +742,6 @@ class PollView(discord.ui.View):
         for votes in self.poll_data["votes"].values():
             for vote in votes:
                 results[vote] = results.get(vote, 0) + 1
-
         result_lines = [f"**{opt}** – {results.get(opt, 0)} vote(s)" for opt in self.poll_data["options"]]
         embed = discord.Embed(
             title="📊 Poll Results",
@@ -751,28 +749,9 @@ class PollView(discord.ui.View):
             color=discord.Color.green()
         )
         embed.set_footer(text="This poll has ended.")
-
         log_channel = self.bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
             await log_channel.send(embed=embed)
-        # 🟡 DEBUG: Check if message is set
-        print(f"on_timeout triggered. Message = {self.message}")
-
-
-        # Delete poll message after timeout
-        if self.message:
-            try:
-                await asyncio.sleep(1)  # Optional: prevents race condition
-                await self.message.delete()
-                print("Poll message deleted successfully.")
-            except discord.NotFound:
-                print("Poll message already deleted.")
-            except discord.Forbidden:
-                print("Missing permission to delete poll message.")
-            except Exception as e:
-                print(f"Failed to delete poll message: {e}")
-        else:
-            print("Poll message not set — nothing to delete.")
 
 @bot.tree.command(name="poll", description="Create a poll with up to 10 options.")
 @app_commands.describe(
@@ -821,15 +800,14 @@ async def poll(interaction: discord.Interaction, question: str, options: str, du
     }
 
     embed = discord.Embed(
-        title="Poll 📊",
+        title="=Poll 📊",
         description=f"**{question}**\n\n" + "\n".join([f"{i+1}. {opt}" for i, opt in enumerate(option_list)]),
         color=discord.Color.blue()
     )
     embed.set_footer(text=f"Poll started by {interaction.user.display_name}")
-
     view = PollView(option_list, poll_data, bot, timeout_seconds)
     await interaction.response.send_message(embed=embed, view=view)
-    view.message = await interaction.original_response()
+
 # Sync the commands
 @bot.event
 async def on_ready():
