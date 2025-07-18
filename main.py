@@ -729,6 +729,7 @@ class PollView(View):
     def __init__(self, options, poll_data, timeout=None):
         super().__init__(timeout=timeout)
         self.poll_data = poll_data
+        self.bot = bot
         poll_id = poll_data["id"]
         for option in options:
             self.add_item(PollButton(option, poll_id))
@@ -746,7 +747,7 @@ class PollView(View):
             color=discord.Color.green()
         )
         embed.set_footer(text="This poll has ended.")
-        log_channel = self.poll_data["channel"].bot.get_channel(LOG_CHANNEL_ID)
+        log_channel = self.bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
             await log_channel.send(embed=embed)
 
@@ -802,7 +803,7 @@ async def poll(interaction: discord.Interaction, question: str, options: str, du
         color=discord.Color.blue()
     )
     embed.set_footer(text=f"Poll started by {interaction.user.display_name}")
-    view = PollView(option_list, poll_data, timeout=timeout_seconds)
+    view = PollView(option_list, poll_data, bot, timeout=timeout_seconds)
     await interaction.response.send_message(embed=embed, view=view)
 
 # Sync the commands
