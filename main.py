@@ -68,7 +68,6 @@ async def on_member_join(member: discord.Member):
         ),
         color=discord.Color.teal()
     )
-    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1372059707694645360/1395823720647364638/image.png")
     embed.set_footer(text="UNDERCITY ROLEPLAY")
 
     try:
