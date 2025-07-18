@@ -698,11 +698,11 @@ async def dm_embed_ui(interaction: discord.Interaction, user: discord.User):
 
 # ------------ /poll feature -------------
 
-class PollButton(Button):
-    def __init__(self, label, poll_id):
-        super().__init__(label=label, style=discord.ButtonStyle.primary, custom_id=f"poll_{poll_id}_{label}")
-        self.poll_id = poll_id
-        self.label_text = label
+class PollButton(discord.ui.Button):
+    def __init__(self, label, poll_data):
+        super().__init__(label=label, style=discord.ButtonStyle.primary)
+        self.label = label
+        self.poll_data = poll_data
 
     async def callback(self, interaction: discord.Interaction):
         poll_data = self.view.poll_data
@@ -734,6 +734,7 @@ class PollView(discord.ui.View):
         self.timeout_seconds = timeout_seconds
         self.message = None  # This will be set after sending the message
         self.options = options
+        self.add_item(PollButton(option, poll_data))
 
         for idx, option in enumerate(options):
             self.add_item(PollButton(label=option, index=idx, poll_data=poll_data))
