@@ -693,114 +693,109 @@ async def dm_embed_ui(interaction: discord.Interaction, user: discord.User):
     await interaction.response.send_modal(DmEmbedModal(bot, interaction.user, user))
 
 # ------------ /poll feature -------------
-def parse_duration(duration: str) -> int:
+class PollButton(discord.ui.Button):
+    def __init__(self, label, index):
+        super().__init__(label=label, style=discord.ButtonStyle.secondary)
+        self.index = index
+
+    async def callback(self, interaction: discord.Interaction):
+        view: PollView = self.view
+        if view.allow_multiple:
+            if interaction.user.id in view.voters[self.index]:
+                view.voters[self.index].remove(interaction.user.id)
+                await interaction.response.send_message("Vote removed.", ephemeral=True)
+            else:
+                view.voters[self.index].add(interaction.user.id)
+                await interaction.response.send_message("Vote added.", ephemeral=True)
+        else:
+            for i in range(len(view.voters)):
+                view.voters[i].discard(interaction.user.id)
+            view.voters[self.index].add(interaction.user.id)
+            await interaction.response.send_message("Vote submitted.", ephemeral=True)
+
+class CancelPollButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label="Cancel Poll", style=discord.ButtonStyle.danger)
+
+    async def callback(self, interaction: discord.Interaction):
+        view: PollView = self.view
+        if interaction.user.id != view.author.id:
+            await interaction.response.send_message("Only the poll creator can cancel this poll.", ephemeral=True)
+            return
+        for child in view.children:
+            child.disabled = True
+        await view.message.edit(content="❌ Poll canceled.", view=view)
+        view.stop()
+
+class PollView(discord.ui.View):
+    def __init__(self, question, options, author, allow_multiple):
+        super().__init__(timeout=None)
+        self.question = question
+        self.options = options
+        self.author = author
+        self.allow_multiple = allow_multiple
+        self.voters = [set() for _ in options]
+        self.message = None
+        for i, option in enumerate(options):
+            self.add_item(PollButton(label=option, index=i))
+        self.add_item(CancelPollButton())
+
+    def get_results_embed(self):
+        total_votes = sum(len(v) for v in self.voters)
+        embed = discord.Embed(title=f"📊 Poll Results: {self.question}", color=discord.Color.green())
+        for i, option in enumerate(self.options):
+            count = len(self.voters[i])
+            percent = (count / total_votes * 100) if total_votes else 0
+            embed.add_field(name=f"{option}", value=f"{count} votes ({percent:.1f}%)", inline=False)
+        return embed
+
+@commands.hybrid_command(name="poll", description="Create a poll")
+@app_commands.describe(
+    question="Poll question",
+    options="Comma-separated options (max 10)",
+    duration="Duration (e.g., 1d, 2h, 30m, never)",
+    allow_multiple="Allow multiple votes per user?"
+)
+async def poll(ctx: commands.Context, question: str, options: str, duration: str = "1d", allow_multiple: bool = False):
+    option_list = [o.strip() for o in options.split(",") if o.strip()]
+    if len(option_list) < 2 or len(option_list) > 10:
+        return await ctx.send("You must provide between 2 and 10 options, separated by commas.")
+
+    view = PollView(question, option_list, ctx.author, allow_multiple)
+    embed = discord.Embed(title=f"📊 {question}", description="Click the buttons below to vote.", color=discord.Color.blurple())
+    for i, opt in enumerate(option_list):
+        embed.add_field(name=f"Option {i+1}", value=opt, inline=False)
+    
+    msg = await ctx.send(embed=embed, view=view)
+    view.message = msg
+
     if duration.lower() == "never":
-        return None
-    match = re.match(r'(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?', duration)
+        return
+    
+    match = re.match(r"(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?", duration.lower())
     if not match:
-        return None
+        return await ctx.send("Invalid duration format. Use like `1d2h30m` or `30m` or `never`.")
+
     days = int(match.group(1) or 0)
     hours = int(match.group(2) or 0)
     minutes = int(match.group(3) or 0)
-    return (days * 86400) + (hours * 3600) + (minutes * 60)
+    timeout = days * 86400 + hours * 3600 + minutes * 60
+    if timeout == 0:
+        return await ctx.send("Duration must be greater than 0 seconds or use 'never'.")
 
-class PollModal(discord.ui.Modal, title="Create a Poll"):
-    question = discord.ui.TextInput(label="Poll Question", max_length=200)
-    options = discord.ui.TextInput(label="Options (one per line)", style=discord.TextStyle.paragraph)
+    await asyncio.sleep(timeout)
+    for child in view.children:
+        child.disabled = True
+    await view.message.edit(view=view)
+    results = view.get_results_embed()
+    log_channel = ctx.bot.get_channel(LOG_CHANNEL_ID)
+    if log_channel:
+        await log_channel.send(embed=results)
+    else:
+        await ctx.send("Log channel not found.")
 
-    def __init__(self, duration: str, multi_vote: bool, interaction: discord.Interaction):
-        super().__init__()
-        self.duration = duration
-        self.multi_vote = multi_vote
-        self.interaction = interaction
-
-    async def on_submit(self, interaction: discord.Interaction):
-        opts = self.options.value.strip().splitlines()
-        if len(opts) < 2 or len(opts) > 10:
-            await interaction.response.send_message("Please provide between 2 and 10 options.", ephemeral=True)
-            return
-
-        view = PollView(opts, self.multi_vote, self.interaction.user, self.duration)
-        embed = discord.Embed(title="📊 " + self.question.value, color=discord.Color.blurple())
-        for idx, option in enumerate(opts):
-            embed.add_field(name=f"Option {idx+1}", value=option, inline=False)
-        embed.set_footer(text="Vote using the buttons below!")
-
-        await interaction.response.send_message(embed=embed, view=view)
-
-        if self.duration.lower() != "never":
-            await view.wait()
-            result_embed = await view.get_result_embed(self.question.value)
-            log_channel = bot.get_channel(LOG_CHANNEL_ID)
-            if log_channel:
-                await log_channel.send(embed=result_embed)
-
-class PollView(discord.ui.View):
-    def __init__(self, options, multi_vote, author, duration):
-        super().__init__(timeout=parse_duration(duration))
-        self.votes = {}
-        self.options = options
-        self.multi_vote = multi_vote
-        self.author = author
-        self.buttons = []
-        for idx, option in enumerate(options):
-            btn = discord.ui.Button(label=option, style=discord.ButtonStyle.secondary, custom_id=str(idx))
-            btn.callback = self.make_callback(idx)
-            self.add_item(btn)
-            self.buttons.append(btn)
-
-    def make_callback(self, idx):
-        async def callback(interaction: discord.Interaction):
-            user_id = interaction.user.id
-            if not self.multi_vote:
-                for key in self.votes:
-                    if user_id in self.votes[key]:
-                        self.votes[key].remove(user_id)
-            self.votes.setdefault(idx, set()).add(user_id)
-            await interaction.response.send_message("✅ Vote registered.", ephemeral=True)
-        return callback
-
-    async def get_result_embed(self, question):
-        embed = discord.Embed(title="📊 Poll Results", description=question, color=discord.Color.green())
-        total_votes = 0
-        for idx, option in enumerate(self.options):
-            vote_count = len(self.votes.get(idx, []))
-            total_votes += vote_count
-            embed.add_field(name=option, value=f"{vote_count} votes", inline=False)
-        embed.set_footer(text=f"Total votes: {total_votes}")
-        return embed
-
-class CancelView(discord.ui.View):
-    def __init__(self, user):
-        super().__init__(timeout=30)
-        self.cancelled = False
-        self.user = user
-
-    @discord.ui.button(label="Cancel Poll", style=discord.ButtonStyle.danger)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.user.id:
-            await interaction.response.send_message("You can't cancel this poll.", ephemeral=True)
-            return
-        self.cancelled = True
-        await interaction.response.edit_message(content="❌ Poll creation cancelled.", view=None)
-        self.stop()
-
-@bot.tree.command(name="poll", description="Create a poll")
-@app_commands.describe(duration="Duration like 1d2h30m or 'never'", multi_vote="Allow multiple votes per user")
-async def poll(interaction: discord.Interaction, duration: str, multi_vote: bool = False):
-    parsed_time = parse_duration(duration.lower())
-    if parsed_time is None and duration.lower() != "never":
-        await interaction.response.send_message("Invalid duration format. Use like `1d2h30m` or `never`.", ephemeral=True)
-        return
-
-    view = CancelView(interaction.user)
-    await interaction.response.send_message("Click below to cancel the poll setup if needed within 30s.", view=view, ephemeral=True)
-    await view.wait()
-
-    if view.cancelled:
-        return
-
-    await interaction.followup.send_modal(PollModal(duration, multi_vote, interaction))
+async def setup(bot):
+    bot.add_command(poll)
 
 
 # ------------ error handling -----------
