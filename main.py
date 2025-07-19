@@ -21,7 +21,9 @@ ALLOWED_ROLE_ID = 1346488365608079452  # Role allowed to use forwardproof
 SAY_ROLE_ID = 1346488355486961694  # Role allowed to use say commands
 ADMIN_LOG_ROLE_ID = 1346488363053482037 # Role allowed to use log commands
 TICKET_CHANNEL_PREFIX = "ticket-"
+WHITELISTED_ROLE_ID = 1346488379734491196  # 🔁 Replace with actual role ID
 
+WHITELIST_LOG_CHANNEL_ID = 1346488637537386617 # Channel where the embed should be sent
 BAN_LOG_CHANNEL_ID = 1346488664917671946
 JAIL_LOG_CHANNEL_ID = 1382895763717226516
 FC_LOG_CHANNEL_ID = 1377862821924044860
@@ -49,6 +51,34 @@ async def on_ready():
 #----------Date TIme Handler ----------
 def format_datetime(dt: datetime.datetime):
     return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+# ----------- WHITELIST LOG ---------------
+@bot.event
+async def on_member_update(before, after):
+    before_roles = set(before.roles)
+    after_roles = set(after.roles)
+
+    # Check if the whitelisted role was just added
+    newly_added_roles = after_roles - before_roles
+    for role in newly_added_roles:
+        if role.id == WHITELISTED_ROLE_ID:
+            embed = discord.Embed(
+                title="__𝗪𝗛𝗜𝗧𝗘𝗟𝗜𝗦𝗧𝗘𝗗__",
+                description=(
+                    "𝗬𝗼𝘂𝗿 𝗮𝗰𝗰𝗼𝘂𝗻𝘁 𝗶𝘀 𝘄𝗵𝗶𝘁𝗲𝗹𝗶𝘀𝘁𝗲𝗱 𝗘𝗻𝗷𝗼𝘆 𝗥𝗣\n\n"
+                    f"{after.mention}\n\n"
+                    " 𝗬𝗼𝘂𝗿 𝗥𝗼𝗹𝗲𝗽𝗹𝗮𝘆 𝗕𝗲𝗴𝗶𝗻𝘀.\n"
+                    "```UNDER CITY ROLEPLAY```"
+                ),
+                color=discord.Color.from_rgb(93, 238, 14)
+            )
+            embed.set_image(url="https://cdn.discordapp.com/attachments/1372059707694645360/1396137859890679941/standardwh.gif?ex=687cfe34&is=687bacb4&hm=cabb6b4e4d9720933972af6ae6d0e1d047e1582d7b99cc1a6f1f7629b797ecc7&")
+
+            channel = after.guild.get_channel(WHITELIST_LOG_CHANNEL_ID)
+            if channel:
+                await channel.send(embed=embed)
+            break
+
 
 # ------- JOIN DM --------------------
 @bot.event
