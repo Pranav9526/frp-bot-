@@ -944,6 +944,10 @@ async def on_guild_join(guild):
     if guild.id != YOUR_SERVER_ID:
         await guild.leave()
 
+# ------------ Whitelist command ---------
+async def setup():
+    await bot.load_extension("app")
+
 # -------- Keep Alive & Run --------
 keep_alive()
 bot.run(TOKEN)
