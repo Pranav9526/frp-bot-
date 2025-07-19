@@ -28,6 +28,7 @@ BAN_LOG_CHANNEL_ID = 1346488664917671946
 JAIL_LOG_CHANNEL_ID = 1382895763717226516
 FC_LOG_CHANNEL_ID = 1377862821924044860
 MENTION_ROLE_ID = 1346488379734491196
+INTERVIEW_ACCEPTED_ROLE_ID = 1347946934308176013
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -945,8 +946,25 @@ async def on_guild_join(guild):
         await guild.leave()
 
 # ------------ Whitelist command ---------
-async def setup():
-    await bot.load_extension("app")
+
+# ✅ /wh Slash Command
+@bot.tree.command(name="wh", description="Whitelist a user by assigning/removing roles")
+@app_commands.describe(user="The user to whitelist")
+async def wh(interaction: discord.Interaction, user: discord.Member):
+    whitelisted_role = interaction.guild.get_role(WHITELISTED_ROLE_ID)
+    interview_role = interaction.guild.get_role(INTERVIEW_ACCEPTED_ROLE_ID)
+
+    if whitelisted_role is None or interview_role is None:
+        return await interaction.response.send_message("❌ One or both roles not found.", ephemeral=True)
+
+    try:
+        await user.add_roles(whitelisted_role)
+        await user.remove_roles(interview_role)
+        await interaction.response.send_message(f"✅ {user.mention} has been whitelisted.", ephemeral=False)
+    except discord.Forbidden:
+        await interaction.response.send_message("❌ I don't have permission to edit that user's roles.", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
 
 # -------- Keep Alive & Run --------
 keep_alive()
