@@ -947,10 +947,13 @@ async def on_guild_join(guild):
 
 # ------------ Whitelist command ---------
 
-# ✅ /wh Slash Command
-@bot.tree.command(name="wh", description="Whitelist a user by assigning/removing roles")
-@app_commands.describe(user="The user to whitelist")
-async def wh(interaction: discord.Interaction, user: discord.Member):
+# ✅ /wh Slash Command (with nickname input and private response)
+@bot.tree.command(name="wh", description="Whitelist a user, set their nickname, and remove interview role.")
+@app_commands.describe(
+    user="The user to whitelist",
+    nickname="The nickname to give the user"
+)
+async def wh(interaction: discord.Interaction, user: discord.Member, nickname: str):
     whitelisted_role = interaction.guild.get_role(WHITELISTED_ROLE_ID)
     interview_role = interaction.guild.get_role(INTERVIEW_ACCEPTED_ROLE_ID)
 
@@ -960,9 +963,13 @@ async def wh(interaction: discord.Interaction, user: discord.Member):
     try:
         await user.add_roles(whitelisted_role)
         await user.remove_roles(interview_role)
-        await interaction.response.send_message(f"✅ {user.mention} has been whitelisted.", ephemeral=False)
+        await user.edit(nick=nickname)
+        await interaction.response.send_message(
+            f"✅ {user.mention} has been whitelisted and renamed to `{nickname}`.",
+            ephemeral=True
+        )
     except discord.Forbidden:
-        await interaction.response.send_message("❌ I don't have permission to edit that user's roles.", ephemeral=True)
+        await interaction.response.send_message("❌ I don't have permission to manage this user.", ephemeral=True)
     except Exception as e:
         await interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
 
