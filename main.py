@@ -69,6 +69,7 @@ async def on_member_join(member: discord.Member):
         color=discord.Color.teal()
     )
     embed.set_footer(text="UNDERCITY ROLEPLAY")
+    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1372059707694645360/1396061147333005343/image.png?ex=687cb6c3&is=687b6543&hm=fc75c086cd82bcc804fe4a0df0d1cb2426195154ed77f15ddbd00cebc62e49f5&")
 
     try:
         await member.send(embed=embed)
