@@ -973,6 +973,38 @@ async def wh(interaction: discord.Interaction, user: discord.Member, nickname: s
     except Exception as e:
         await interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
 
+# ------------- Auto Delete Messages in Trolls and insta ---------------
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    # Channel IDs to monitor
+    monitored_channels = [1346488677441732700, 1346488679035834460]
+    # Role ID that can bypass this (staff role with /sayembed access)
+    staff_role_id = 1346488355486961694
+
+    if message.channel.id in monitored_channels:
+        # Check if user has staff role
+        is_staff = any(role.id == staff_role_id for role in message.author.roles)
+
+        # If not staff and message has no attachments (text-only message)
+        if not is_staff and len(message.attachments) == 0:
+            await message.delete()
+
+            # Reminder embed
+            embed = discord.Embed(
+                description=f"❌ {message.author.mention}, please don’t chat in this channel. It's only for in-game media posts.",
+                color=discord.Color.red()
+            )
+
+            # Send reminder and delete after 5 seconds
+            warning_msg = await message.channel.send(embed=embed)
+            await asyncio.sleep(5)
+            await warning_msg.delete()
+
+    await bot.process_commands(message)
+
 # -------- Keep Alive & Run --------
 keep_alive()
 bot.run(TOKEN)
