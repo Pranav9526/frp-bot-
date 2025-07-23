@@ -1132,7 +1132,7 @@ async def submit_interview(user: discord.User):
     embed = discord.Embed(
         title=f"📝 Interview Application — {user.name}",
         color=discord.Color.orange(),
-        timestamp=datetime.utcnow()
+        timestamp = datetime.datetime.utcnow()
     )
 
     for i, answer in data.items():
