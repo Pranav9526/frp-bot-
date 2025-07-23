@@ -1011,9 +1011,6 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # ------------ INTERVIEW APPLICATION FEATURE ------------------
-REVIEW_CHANNEL_ID = 1379753912155770941
-REVIEWER_ROLE_ID = 1346488365608079452  # Optional: For action buttons later
-
 # Store user sessions
 interview_sessions = {}
 
