@@ -30,9 +30,9 @@ FC_LOG_CHANNEL_ID = 1377862821924044860
 MENTION_ROLE_ID = 1346488379734491196
 INTERVIEW_ACCEPTED_ROLE_ID = 1347946934308176013
 
-APPLICATION_REVIEW_CHANNEL_ID = 1379753912155770941
+REVIEW_CHANNEL_ID = 1379753912155770941
 REVIEWER_ROLE_ID = 1346488365608079452
-THUMBNAIL_URL = "https://cdn.discordapp.com/attachments/1372059707694645360/1396061147333005343/image.png?ex=687cb6c3&is=687b6543&hm=fc75c086cd82bcc804fe4a0df0d1cb2426195154ed77f15ddbd00cebc62e49f5&"
+THUMBNAIL_URL = "https://cdn.discordapp.com/attachments/1372059707694645360/1396061147333005343/image.png?ex=6881fcc3&is=6880ab43&hm=ae6f0295e136bc7e1a0619674cb9e8844e87fdee8ebc6a2b688ab4206234168e&"
 
 
 intents = discord.Intents.default()
@@ -1011,6 +1011,12 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # ------------ INTERVIEW APPLICATION FEATURE ------------------
+REVIEW_CHANNEL_ID = 1379753912155770941
+REVIEWER_ROLE_ID = 1346488365608079452  # Optional: For action buttons later
+
+# Store user sessions
+interview_sessions = {}
+
 class InterviewPanelView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -1027,208 +1033,126 @@ class InterviewPanelView(discord.ui.View):
             except:
                 pass
 
-
-@bot.tree.command(name="panel", description="Send interview panel to a channel")
-@app_commands.describe(channel="Channel to send the panel")
+@bot.tree.command(name="panel", description="Send interview panel")
+@app_commands.describe(channel="Select the channel to send the panel to")
 async def panel(interaction: discord.Interaction, channel: discord.TextChannel):
     embed = discord.Embed(
-        title="📋 UCRP Official Staff Interview Panel",
-        description=(
-            "Click below to start your application.\n"
-            "**Note:** San Fierro (SF) is the main city. Entering Los Santos (LS) requires permission from TRT.\n"
-            "🔒 All details must be real. Fake info may lead to blacklist.\n\n"
-            "**🎤 Click 'Start Interview' to begin in DM.**"
-        ),
-        color=discord.Color.orange()
+        title="🎓 UCRP Staff Interview Panel",
+        description="Click the button below to start the interview via DM.\nPlease ensure your DMs are open.",
+        color=discord.Color.blue()
     )
-    embed.set_thumbnail(url=THUMBNAIL_URL)
+    embed.set_footer(text="Undercity Roleplay | Interview System")
     await channel.send(embed=embed, view=InterviewPanelView())
-    await interaction.response.send_message(f"✅ Panel sent to {channel.mention}", ephemeral=True)
+    await interaction.response.send_message("✅ Panel sent.", ephemeral=True)
 
-
-class ConfirmView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=60)
-        self.response = None
-
-        self.select = discord.ui.Select(
-            placeholder="Do you have RP experience before?",
-            options=[
-                discord.SelectOption(label="Yes", value="Yes"),
-                discord.SelectOption(label="No", value="No")
-            ]
+class Dropdown(discord.ui.Select):
+    def __init__(self, question, options, session_key):
+        self.question = question
+        self.session_key = session_key
+        super().__init__(
+            placeholder="Select an option...",
+            options=[discord.SelectOption(label=opt) for opt in options],
+            min_values=1, max_values=1
         )
-        self.select.callback = self.select_callback
-        self.add_item(self.select)
 
-    async def select_callback(self, interaction: discord.Interaction):
-        self.response = self.select.values[0]
-        await interaction.response.defer()
-        self.stop()
+    async def callback(self, interaction: discord.Interaction):
+        interview_sessions[interaction.user.id][self.session_key] = self.values[0]
+        await interaction.message.delete()
+        await ask_next_question(interaction.user)
 
-class AgreementView(discord.ui.View):
-    def __init__(self):
+class DropdownView(discord.ui.View):
+    def __init__(self, question, options, session_key):
         super().__init__(timeout=60)
-        self.response = None
-
-        self.select = discord.ui.Select(
-            placeholder="Do you agree to the terms and city rules?",
-            options=[
-                discord.SelectOption(label="I Agree", value="I Agree")
-            ]
-        )
-        self.select.callback = self.select_callback
-        self.add_item(self.select)
-
-    async def select_callback(self, interaction: discord.Interaction):
-        self.response = self.select.values[0]
-        await interaction.response.defer()
-        self.stop()
+        self.add_item(Dropdown(question, options, session_key))
 
 async def start_interview(user: discord.User):
     try:
-        questions = [
-            "❓ What is Power Gaming?",
-            "❓ What is Random Death Match (RDM)?",
-            "❓ What is Fear RP?",
-            "❓ What is Car Jacking (CJ)?",
-            "❓ What is Combat Logging?",
-            "❓ What is Meta Gaming?",
-            "❓ What is Copbaiting?",
-            "❓ What is Safezone? Tell 5 Safezone Areas.",
-            "📌 Do you have RP experience before?",
-            "📝 Your Real Name",
-            "📝 Your Real Age",
-            "✅ I certify that the above details are true, and I accept all UCRP policies.\nSF is the main city. TRT controls LS entry."
-        ]
-
-        answers = []
-
-        for idx, question in enumerate(questions):
-            embed = discord.Embed(
-                title=f"📨 Interview Question {idx+1}",
-                description=question,
-                color=discord.Color.dark_orange()
-            )
-            embed.set_footer(text="Answer all questions truthfully.")
-            
-            if idx == 8:
-                view = ConfirmView()
-                msg = await user.send(embed=embed, view=view)
-                await view.wait()
-                answers.append(view.response or "No response")
-            elif idx == 11:
-                view = AgreementView()
-                msg = await user.send(embed=embed, view=view)
-                await view.wait()
-                answers.append(view.response or "No response")
-            else:
-                await user.send(embed=embed)
-
-                def check(m):
-                    return m.author == user and isinstance(m.channel, discord.DMChannel)
-
-                try:
-                    msg = await bot.wait_for("message", check=check, timeout=300)
-                    answers.append(msg.content)
-                except asyncio.TimeoutError:
-                    await user.send("❌ Interview cancelled due to inactivity.")
-                    return
-
-        # Compile Result
-        embed = discord.Embed(
-            title="📥 New Staff Interview Submission",
-            color=discord.Color.orange(),
-            timestamp=datetime.datetime.now(datetime.timezone.utc)
-        )
-        fields = [
-            "Power Gaming", "RDM", "Fear RP", "CJ", "Combat Logging", "Meta Gaming", "Copbaiting",
-            "Safezone", "RP Experience", "Real Name", "Real Age", "Agreement"
-        ]
-
-        for i, answer in enumerate(answers):
-            embed.add_field(name=f"**{fields[i]}**", value=answer, inline=False)
-
-        embed.set_thumbnail(url=THUMBNAIL_URL)
-        embed.set_footer(text="UCRP Interview System")
-
-        embed.add_field(
-            name="🧾 Applicant Info",
-            value=(
-                f"**ID:** {user.id}\n"
-                f"**User:** {user}\n"
-                f"**Mention:** {user.mention}\n"
-                f"**Created:** <t:{int(user.created_at.timestamp())}:R>"
-            ),
-            inline=False
-        )
-
-        view = ApplicationReviewView(user)
-        channel = bot.get_channel(APPLICATIONS_REVIEW_CHANNEL_ID)
-        await channel.send(embed=embed, view=view)
-
-        await user.send("✅ Your application has been submitted for review. Thank you!")
+        interview_sessions[user.id] = {}
+        await user.send(embed=discord.Embed(
+            title="📋 Interview Started",
+            description="Please answer the following 12 questions. Respond carefully.",
+            color=discord.Color.teal()
+        ))
+        await ask_next_question(user)
     except Exception as e:
-        print("Interview Error:", e)
+        print("DM Error:", e)
         try:
-            await user.send("❌ Unable to complete the interview due to an error or closed DMs.")
+            await user.send("❌ Unable to start the interview due to an error or closed DMs.")
         except:
             pass
 
+questions = [
+    "What Is Power Gaming",
+    "What is Random Death Match (RDM)",
+    "What is Fear Rp",
+    "What is Car Jacking (CJ)",
+    "What Is Combat Logging?",
+    "What Is Meta Gaming?",
+    "What Is Copbaiting?",
+    "What Is Safezone. Tell 5 Safezone Areas.",
+    "Do you have RP experience before (yes or no)",
+    "Your Real Name",
+    "Your Real Age",
+    "I CERTIFY THAT ALL ABOVE DETAILS ARE VERIFIED AND TRUE. I ACCEPT TERMS & POLICIES OF UCRP.\n\n__**San Fierro is the main city. To enter LS, you must take permission from TRT.**__\n\n➡️ To answer this, please select an option below."
+]
 
-class ApplicationReviewView(discord.ui.View):
-    def __init__(self, applicant: discord.User):
-        super().__init__(timeout=None)
-        self.applicant = applicant
+dropdown_questions = {
+    8: ["Yes", "No"],
+    11: ["I Agree"]
+}
 
-    @discord.ui.button(label="✅ Accept", style=discord.ButtonStyle.green)
-    async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if REVIEWER_ROLE_ID not in [role.id for role in interaction.user.roles]:
-            return await interaction.response.send_message("❌ You don't have permission to review.", ephemeral=True)
+async def ask_next_question(user: discord.User):
+    answers = interview_sessions[user.id]
+    q_index = len(answers)
 
-        embed = interaction.message.embeds[0]
-        embed.color = discord.Color.green()
-        await interaction.message.edit(embed=embed, view=None)
+    if q_index >= len(questions):
+        await submit_interview(user)
+        return
 
-        await interaction.response.send_message(f"✅ Accepted {self.applicant.mention}.", ephemeral=True)
-        await self.applicant.send("✅ Your UCRP application has been **accepted**. Welcome!")
+    question = questions[q_index]
 
-    @discord.ui.button(label="❌ Reject", style=discord.ButtonStyle.red)
-    async def reject(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if REVIEWER_ROLE_ID not in [role.id for role in interaction.user.roles]:
-            return await interaction.response.send_message("❌ You don't have permission to review.", ephemeral=True)
+    if q_index in dropdown_questions:
+        view = DropdownView(question, dropdown_questions[q_index], f"q{q_index}")
+        embed = discord.Embed(title=f"Question {q_index+1}", description=question, color=discord.Color.dark_gold())
+        await user.send(embed=embed, view=view)
+    else:
+        embed = discord.Embed(title=f"Question {q_index+1}", description=question, color=discord.Color.dark_gold())
+        await user.send(embed=embed)
 
-        embed = interaction.message.embeds[0]
-        embed.color = discord.Color.red()
-        await interaction.message.edit(embed=embed, view=None)
+        def check(m):
+            return m.author == user and isinstance(m.channel, discord.DMChannel)
 
-        await interaction.response.send_message(f"❌ Rejected {self.applicant.mention}.", ephemeral=True)
-        await self.applicant.send("❌ Your UCRP application has been **rejected**.")
+        try:
+            msg = await bot.wait_for("message", check=check, timeout=300)
+            interview_sessions[user.id][f"q{q_index}"] = msg.content
+            await ask_next_question(user)
+        except asyncio.TimeoutError:
+            await user.send("⏰ Interview timed out. Please start again with `/panel`.")
+            interview_sessions.pop(user.id, None)
 
-    @discord.ui.button(label="📝 Reject with Reason", style=discord.ButtonStyle.blurple)
-    async def reject_with_reason(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if REVIEWER_ROLE_ID not in [role.id for role in interaction.user.roles]:
-            return await interaction.response.send_message("❌ You don't have permission to review.", ephemeral=True)
+async def submit_interview(user: discord.User):
+    data = interview_sessions.pop(user.id)
+    embed = discord.Embed(
+        title=f"📝 Interview Application — {user.name}",
+        color=discord.Color.orange(),
+        timestamp=datetime.utcnow()
+    )
 
-        await interaction.response.send_modal(RejectReasonModal(self.applicant, interaction.message))
+    for i, answer in data.items():
+        q_number = int(i.replace("q", ""))
+        question_text = questions[q_number]
+        embed.add_field(name=f"{q_number+1}. {question_text}", value=answer, inline=False)
 
+    embed.add_field(
+        name="📌 Submission Info",
+        value=f"User ID: `{user.id}`\nUsername: {user.name}\nMention: {user.mention}",
+        inline=False
+    )
+    review_channel = bot.get_channel(REVIEW_CHANNEL_ID)
+    if review_channel:
+        await review_channel.send(embed=embed)
+    await user.send("✅ Your interview has been submitted! You will be contacted after review.")
 
-class RejectReasonModal(discord.ui.Modal, title="Reject With Reason"):
-    reason = discord.ui.TextInput(label="Reason for rejection", style=discord.TextStyle.paragraph, required=True)
-
-    def __init__(self, applicant, message):
-        super().__init__()
-        self.applicant = applicant
-        self.message = message
-
-    async def on_submit(self, interaction: discord.Interaction):
-        embed = self.message.embeds[0]
-        embed.color = discord.Color.red()
-        embed.add_field(name="🛑 Rejection Reason", value=self.reason.value, inline=False)
-        await self.message.edit(embed=embed, view=None)
-
-        await self.applicant.send(f"❌ Your application was **rejected**.\n📄 Reason: {self.reason.value}")
-        await interaction.response.send_message("✅ Applicant has been notified.", ephemeral=True)
 
 
 # -------- Keep Alive & Run --------
