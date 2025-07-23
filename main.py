@@ -1021,8 +1021,11 @@ class InterviewPanelView(discord.ui.View):
             await interaction.response.send_message("📨 Interview has started in your DMs.", ephemeral=True)
             await start_interview(interaction.user)
         except Exception as e:
-            print(e)
-            await interaction.followup.send("❌ Unable to start the interview due to an error or closed DMs.", ephemeral=True)
+            print("Interview error:", e)
+            try:
+                await interaction.followup.send("❌ Unable to start the interview due to an error or closed DMs.", ephemeral=True)
+            except:
+                pass
 
 
 @bot.tree.command(name="panel", description="Send interview panel to a channel")
@@ -1043,21 +1046,23 @@ async def panel(interaction: discord.Interaction, channel: discord.TextChannel):
     await interaction.response.send_message(f"✅ Panel sent to {channel.mention}", ephemeral=True)
 
 
-# ----------- Interview Logic -----------
 class ConfirmView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=60)
         self.response = None
 
-    @discord.ui.select(
-        placeholder="Do you have RP experience before?",
-        options=[
-            discord.SelectOption(label="Yes", value="Yes"),
-            discord.SelectOption(label="No", value="No")
-        ]
-    )
-    async def dropdown_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
-        self.response = select.values[0]
+        self.select = discord.ui.Select(
+            placeholder="Do you have RP experience before?",
+            options=[
+                discord.SelectOption(label="Yes", value="Yes"),
+                discord.SelectOption(label="No", value="No")
+            ]
+        )
+        self.select.callback = self.select_callback
+        self.add_item(self.select)
+
+    async def select_callback(self, interaction: discord.Interaction):
+        self.response = self.select.values[0]
         await interaction.response.defer()
         self.stop()
 
@@ -1066,17 +1071,19 @@ class AgreementView(discord.ui.View):
         super().__init__(timeout=60)
         self.response = None
 
-    @discord.ui.select(
-        placeholder="Do you agree to the terms and city rules?",
-        options=[
-            discord.SelectOption(label="I Agree", value="I Agree")
-        ]
-    )
-    async def agreement_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
-        self.response = select.values[0]
+        self.select = discord.ui.Select(
+            placeholder="Do you agree to the terms and city rules?",
+            options=[
+                discord.SelectOption(label="I Agree", value="I Agree")
+            ]
+        )
+        self.select.callback = self.select_callback
+        self.add_item(self.select)
+
+    async def select_callback(self, interaction: discord.Interaction):
+        self.response = self.select.values[0]
         await interaction.response.defer()
         self.stop()
-
 
 async def start_interview(user: discord.User):
     try:
@@ -1104,29 +1111,35 @@ async def start_interview(user: discord.User):
                 color=discord.Color.dark_orange()
             )
             embed.set_footer(text="Answer all questions truthfully.")
-            await user.send(embed=embed)
-
+            
             if idx == 8:
                 view = ConfirmView()
-                await user.send(view=view)
+                msg = await user.send(embed=embed, view=view)
                 await view.wait()
                 answers.append(view.response or "No response")
             elif idx == 11:
                 view = AgreementView()
-                await user.send(view=view)
+                msg = await user.send(embed=embed, view=view)
                 await view.wait()
                 answers.append(view.response or "No response")
             else:
+                await user.send(embed=embed)
+
                 def check(m):
                     return m.author == user and isinstance(m.channel, discord.DMChannel)
 
-                msg = await bot.wait_for("message", check=check, timeout=300)
-                answers.append(msg.content)
+                try:
+                    msg = await bot.wait_for("message", check=check, timeout=300)
+                    answers.append(msg.content)
+                except asyncio.TimeoutError:
+                    await user.send("❌ Interview cancelled due to inactivity.")
+                    return
 
         # Compile Result
         embed = discord.Embed(
             title="📥 New Staff Interview Submission",
-            color=discord.Color.orange()
+            color=discord.Color.orange(),
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
         fields = [
             "Power Gaming", "RDM", "Fear RP", "CJ", "Combat Logging", "Meta Gaming", "Copbaiting",
@@ -1138,16 +1151,14 @@ async def start_interview(user: discord.User):
 
         embed.set_thumbnail(url=THUMBNAIL_URL)
         embed.set_footer(text="UCRP Interview System")
-        embed.timestamp = datetime.datetime.utcnow()
 
-        member = user
         embed.add_field(
             name="🧾 Applicant Info",
             value=(
-                f"**ID:** {member.id}\n"
-                f"**User:** {member}\n"
-                f"**Mention:** {member.mention}\n"
-                f"**Joined At:** <t:{int(member.created_at.timestamp())}:R>"
+                f"**ID:** {user.id}\n"
+                f"**User:** {user}\n"
+                f"**Mention:** {user.mention}\n"
+                f"**Created:** <t:{int(user.created_at.timestamp())}:R>"
             ),
             inline=False
         )
@@ -1159,10 +1170,12 @@ async def start_interview(user: discord.User):
         await user.send("✅ Your application has been submitted for review. Thank you!")
     except Exception as e:
         print("Interview Error:", e)
-        await user.send("❌ Unable to complete the interview due to an error or closed DMs.")
+        try:
+            await user.send("❌ Unable to complete the interview due to an error or closed DMs.")
+        except:
+            pass
 
 
-# ----------- Review Button View -----------
 class ApplicationReviewView(discord.ui.View):
     def __init__(self, applicant: discord.User):
         super().__init__(timeout=None)
@@ -1216,7 +1229,6 @@ class RejectReasonModal(discord.ui.Modal, title="Reject With Reason"):
 
         await self.applicant.send(f"❌ Your application was **rejected**.\n📄 Reason: {self.reason.value}")
         await interaction.response.send_message("✅ Applicant has been notified.", ephemeral=True)
-
 
 
 # -------- Keep Alive & Run --------
