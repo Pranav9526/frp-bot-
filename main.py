@@ -1147,8 +1147,77 @@ async def submit_interview(user: discord.User):
     )
     review_channel = bot.get_channel(REVIEW_CHANNEL_ID)
     if review_channel:
-        await review_channel.send(embed=embed)
+        sent = await review_channel.send(embed=embed)
+        await sent.edit(view=ReviewButtons(user.id, sent.id))
+
     await user.send("✅ Your interview has been submitted! You will be contacted after review.")
+
+def has_review_permission(user: discord.User | discord.Member) -> bool:
+    return isinstance(user, discord.Member) and REVIEWER_ROLE_ID in [role.id for role in user.roles]
+
+class RejectionReasonModal(discord.ui.Modal, title="Reject with Reason"):
+    reason = discord.ui.TextInput(label="Reason", style=discord.TextStyle.paragraph, required=True)
+
+    def __init__(self, applicant_id: int, message_id: int):
+        super().__init__()
+        self.applicant_id = applicant_id
+        self.message_id = message_id
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await update_application_status(interaction, "rejected_reason", self.message_id, self.applicant_id, self.reason.value)
+        await interaction.response.send_message(f"❌ Application rejected with reason.", ephemeral=True)
+
+class ReviewButtons(discord.ui.View):
+    def __init__(self, applicant_id: int, message_id: int):
+        super().__init__(timeout=None)
+        self.applicant_id = applicant_id
+        self.message_id = message_id
+
+    @discord.ui.button(label="✅ Accept", style=discord.ButtonStyle.green)
+    async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not has_review_permission(interaction.user):
+            return await interaction.response.send_message("🚫 You don't have permission to review.", ephemeral=True)
+        await update_application_status(interaction, "accepted", self.message_id, self.applicant_id)
+        await interaction.response.send_message("✅ Application accepted.", ephemeral=True)
+
+    @discord.ui.button(label="❌ Reject", style=discord.ButtonStyle.red)
+    async def reject(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not has_review_permission(interaction.user):
+            return await interaction.response.send_message("🚫 You don't have permission to review.", ephemeral=True)
+        await update_application_status(interaction, "rejected", self.message_id, self.applicant_id)
+        await interaction.response.send_message("❌ Application rejected.", ephemeral=True)
+
+    @discord.ui.button(label="⚠️ Reject with Reason", style=discord.ButtonStyle.blurple)
+    async def reject_reason(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not has_review_permission(interaction.user):
+            return await interaction.response.send_message("🚫 You don't have permission to review.", ephemeral=True)
+        await interaction.response.send_modal(RejectionReasonModal(self.applicant_id, self.message_id))
+
+async def update_application_status(interaction: discord.Interaction, status: str, message_id: int, applicant_id: int, reason: str = None):
+    try:
+        review_channel = bot.get_channel(REVIEW_CHANNEL_ID)
+        message = await review_channel.fetch_message(message_id)
+        embed = message.embeds[0]
+        updated_embed = embed.copy()
+
+        if status == "accepted":
+            updated_embed.color = discord.Color.green()
+            updated_embed.set_footer(text=f"✅ Accepted by {interaction.user.name}")
+            await message.edit(embed=updated_embed, view=None)
+            await bot.get_user(applicant_id).send("✅ Your interview has been **accepted**! Staff will contact you soon.")
+        elif status == "rejected":
+            updated_embed.color = discord.Color.red()
+            updated_embed.set_footer(text=f"❌ Rejected by {interaction.user.name}")
+            await message.edit(embed=updated_embed, view=None)
+            await bot.get_user(applicant_id).send("❌ Your interview has been **rejected**. Thank you for applying.")
+        elif status == "rejected_reason":
+            updated_embed.color = discord.Color.red()
+            updated_embed.set_footer(text=f"❌ Rejected by {interaction.user.name} with reason")
+            updated_embed.add_field(name="❗ Rejection Reason", value=reason, inline=False)
+            await message.edit(embed=updated_embed, view=None)
+            await bot.get_user(applicant_id).send(f"❌ Your interview was rejected.\n**Reason:** {reason}")
+    except Exception as e:
+        print("Error updating application status:", e)
 
 
 
