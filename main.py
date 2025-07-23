@@ -1011,6 +1011,39 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # ------------ INTERVIEW APPLICATION FEATURE ------------------
+class InterviewPanelView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="🎤 Start Interview", style=discord.ButtonStyle.green)
+    async def start(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            await interaction.response.send_message("📨 Interview has started in your DMs.", ephemeral=True)
+            await start_interview(interaction.user)
+        except Exception as e:
+            print(e)
+            await interaction.followup.send("❌ Unable to start the interview due to an error or closed DMs.", ephemeral=True)
+
+
+@bot.tree.command(name="panel", description="Send interview panel to a channel")
+@app_commands.describe(channel="Channel to send the panel")
+async def panel(interaction: discord.Interaction, channel: discord.TextChannel):
+    embed = discord.Embed(
+        title="📋 UCRP Official Staff Interview Panel",
+        description=(
+            "Click below to start your application.\n"
+            "**Note:** San Fierro (SF) is the main city. Entering Los Santos (LS) requires permission from TRT.\n"
+            "🔒 All details must be real. Fake info may lead to blacklist.\n\n"
+            "**🎤 Click 'Start Interview' to begin in DM.**"
+        ),
+        color=discord.Color.orange()
+    )
+    embed.set_thumbnail(url=THUMBNAIL_URL)
+    await channel.send(embed=embed, view=InterviewPanelView())
+    await interaction.response.send_message(f"✅ Panel sent to {channel.mention}", ephemeral=True)
+
+
+# ----------- Interview Logic -----------
 class ConfirmView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=60)
@@ -1183,6 +1216,7 @@ class RejectReasonModal(discord.ui.Modal, title="Reject With Reason"):
 
         await self.applicant.send(f"❌ Your application was **rejected**.\n📄 Reason: {self.reason.value}")
         await interaction.response.send_message("✅ Applicant has been notified.", ephemeral=True)
+
 
 
 # -------- Keep Alive & Run --------
