@@ -1164,50 +1164,47 @@ class RejectionReasonModal(discord.ui.Modal, title="Reject Application with Reas
         max_length=1000,
     )
 
-    def __init__(self, applicant_id: int, message_id: int):
+    def __init__(self, applicant_id: int, message_id: int, reviewer: discord.Member):
         super().__init__()
         self.applicant_id = applicant_id
         self.message_id = message_id
+        self.reviewer = reviewer
 
     async def on_submit(self, interaction: discord.Interaction):
-        applicant = interaction.guild.get_member(self.applicant_id)
-        if applicant is None:
-            return await interaction.response.send_message("❌ Applicant not found in server.", ephemeral=True)
-
-        # Fetch the original message
         review_channel = interaction.guild.get_channel(REVIEW_CHANNEL_ID)
-        if not review_channel:
-            return await interaction.response.send_message("❌ Review channel not found.", ephemeral=True)
+        applicant = interaction.guild.get_member(self.applicant_id)
+
+        if not review_channel or not applicant:
+            return await interaction.response.send_message("❌ Review channel or applicant not found.", ephemeral=True)
 
         try:
             message = await review_channel.fetch_message(self.message_id)
         except discord.NotFound:
             return await interaction.response.send_message("❌ Original application message not found.", ephemeral=True)
 
-        # Update embed color to red
+        # Update the embed color only
         embed = message.embeds[0]
         updated_embed = embed.copy()
         updated_embed.color = discord.Color.red()
-
         await message.edit(embed=updated_embed, view=None)
 
-        # Send confirmation message in the review channel
+        # Send a new message with the rejection log
         await review_channel.send(
-            f"{applicant.mention}'s submission has been denied by {interaction.user.mention} with reason:\n```{self.reason.value}```"
+            f"{applicant.mention}'s submission has been denied by {self.reviewer.mention} with reason:\n```{self.reason.value}```"
         )
 
         # DM the user
         try:
-            dm_embed = discord.Embed(
+            await applicant.send(embed=discord.Embed(
                 title="❌ Application Rejected",
                 description=f"Your application was reviewed and **rejected**.\n\n**Reason:**\n```{self.reason.value}```",
-                color=discord.Color.red(),
-            )
-            await applicant.send(embed=dm_embed)
+                color=discord.Color.red()
+            ))
         except discord.Forbidden:
-            await interaction.followup.send("⚠️ Unable to DM the user. They might have DMs off.", ephemeral=True)
+            await interaction.followup.send("⚠️ Could not DM the applicant.", ephemeral=True)
 
         await interaction.response.send_message("❌ Application rejected with reason.", ephemeral=True)
+
 
 class ReviewButtons(discord.ui.View):
     def __init__(self, applicant_id: int, message_id: int):
