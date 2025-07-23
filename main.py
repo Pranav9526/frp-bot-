@@ -1051,12 +1051,11 @@ async def panel(interaction: discord.Interaction):
 
 class InterviewPanelView(discord.ui.View):
     def __init__(self):
-        super().__init__()
-        self.add_item(discord.ui.Button(
-            label="📥 Open Bot DMs",
-            style=discord.ButtonStyle.link,
-            url="https://discord.com/channels/@me"
-        ))
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="📥 Open Bot DMs", style=discord.ButtonStyle.link, url="https://discord.com/channels/@me")
+    async def link_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        pass  # Link buttons don't need a callback
 
     @discord.ui.button(label="🎤 Start Interview", style=discord.ButtonStyle.green)
     async def start(self, interaction: discord.Interaction, button: discord.ui.Button):
