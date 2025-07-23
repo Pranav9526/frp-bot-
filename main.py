@@ -1018,7 +1018,7 @@ class InterviewPanelView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="🎤 Start Interview", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="Start Interview", style=discord.ButtonStyle.green)
     async def start(self, interaction: discord.Interaction, button: discord.ui.Button):
         try:
             await interaction.response.send_message("📨 Interview has started in your DMs.", ephemeral=True)
@@ -1034,7 +1034,7 @@ class InterviewPanelView(discord.ui.View):
 @app_commands.describe(channel="Select the channel to send the panel to")
 async def panel(interaction: discord.Interaction, channel: discord.TextChannel):
     embed = discord.Embed(
-        title="🎓 UCRP Staff Interview Panel",
+        title="𝗜𝗡𝗧𝗘𝗥𝗩𝗜𝗘𝗪 𝗔𝗣𝗣𝗟𝗬",
         description="Click the button below to start the interview via DM.\nPlease ensure your DMs are open.",
         color=discord.Color.blue()
     )
