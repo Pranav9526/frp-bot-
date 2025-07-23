@@ -1244,11 +1244,10 @@ class ReviewButtons(discord.ui.View):
             return await interaction.response.send_message("🚫 You don't have permission to review.", ephemeral=True)
         await interaction.response.send_modal(RejectionReasonModal(self.applicant_id, self.message_id, interaction.user))
 
-async def update_application_status(interaction, status, message_id, applicant_id, reason="No reason provided"):
+async def update_application_status(interaction, status, message_id, applicant_id, reviewer, reason="No reason provided"):
     guild = interaction.guild
     channel = interaction.channel
     applicant = guild.get_member(applicant_id)
-    reviewer = interaction.user
 
     try:
         message = await channel.fetch_message(message_id)
@@ -1256,7 +1255,6 @@ async def update_application_status(interaction, status, message_id, applicant_i
         return
 
     embed = message.embeds[0]
-    embed_dict = embed.to_dict()
 
     # Change embed color
     if status == "accepted":
@@ -1294,7 +1292,6 @@ async def update_application_status(interaction, status, message_id, applicant_i
         await applicant.send(embed=dm_embed)
     except Exception as e:
         print(f"❌ Failed to DM user: {e}")
-
 
 # -------- Keep Alive & Run --------
 keep_alive()
