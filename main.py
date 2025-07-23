@@ -30,6 +30,11 @@ FC_LOG_CHANNEL_ID = 1377862821924044860
 MENTION_ROLE_ID = 1346488379734491196
 INTERVIEW_ACCEPTED_ROLE_ID = 1347946934308176013
 
+APPLICATION_REVIEW_CHANNEL_ID = 1379753912155770941
+REVIEWER_ROLE_ID = 1346488365608079452
+THUMBNAIL_URL = "https://cdn.discordapp.com/attachments/1372059707694645360/1396061147333005343/image.png?ex=687cb6c3&is=687b6543&hm=fc75c086cd82bcc804fe4a0df0d1cb2426195154ed77f15ddbd00cebc62e49f5&"
+
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -1004,6 +1009,171 @@ async def on_message(message):
             await warning_msg.delete()
 
     await bot.process_commands(message)
+
+# ------------ INTERVIEW APPLICATION FEATURE ------------------
+QUESTIONS = [
+    "1. What is your full in-game name?",
+    "2. How old are you in real life?",
+    "3. What is your current level in UCRP?",
+    "4. Have you ever been part of any faction or gang before?",
+    "5. What is your RP experience (in months/years)?",
+    "6. Why do you want to join UCRP?",
+    "7. What do you know about San Fierro and its importance?",
+    "8. Do you understand that Los Santos is under TRT control and needs permission to enter?",
+    "9. How will you contribute to the server if selected?",
+    "10. Have you read all UCRP rules and agree to follow them?",
+    "11. Do you understand that lying or trolling will result in a ban?",
+    "12. Any additional info you'd like to share?"
+]
+
+class StartInterviewButton(discord.ui.View):
+    def __init__(self, user: discord.User):
+        super().__init__(timeout=None)
+        self.user = user
+
+    @discord.ui.button(label="📥 Open Bot DMs", style=discord.ButtonStyle.link, url="https://discord.com/channels/@me")
+    async def open_dm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        pass  # link button — no callback needed
+
+
+class InterviewPanel(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Start Interview", style=discord.ButtonStyle.success, custom_id="start_interview")
+    async def start_interview(self, interaction: discord.Interaction, button: discord.ui.Button):
+        user = interaction.user
+        try:
+            await user.send("📋 **Your interview is starting now! Please answer each question one by one.**")
+        except discord.Forbidden:
+            await interaction.response.send_message("❌ I can't DM you. Please enable DMs and try again.", ephemeral=True)
+            return
+
+        answers = []
+        for q in QUESTIONS:
+            question_embed = discord.Embed(title="Interview Question", description=q, color=discord.Color.blue())
+            await user.send(embed=question_embed)
+
+            def check(m):
+                return m.author == user and isinstance(m.channel, discord.DMChannel)
+
+            try:
+                msg = await bot.wait_for("message", check=check, timeout=300)
+                answers.append(f"**{q}**\n{msg.content}\n")
+            except asyncio.TimeoutError:
+                await user.send("⏰ You took too long to respond. Interview cancelled.")
+                return
+
+        end_time = datetime.datetime.utcnow()
+        member = interaction.user
+        duration = "12 Qs"
+        join_time = member.joined_at.strftime("%Y-%m-%d %H:%M") if member.joined_at else "N/A"
+
+        # Prepare application embed
+        application_embed = discord.Embed(
+            title="📝 New Interview Application",
+            color=discord.Color.from_str("#d4a373")
+        )
+        application_embed.set_thumbnail(url=THUMBNAIL_URL)
+        for answer in answers:
+            if len(application_embed.description or "") + len(answer) < 4000:
+                application_embed.description = (application_embed.description or "") + answer + "\n"
+
+        application_embed.set_footer(text=f"User ID: {member.id} | Duration: {duration} | Joined: {join_time}")
+
+        # Send to review channel
+        channel = bot.get_channel(APPLICATION_REVIEW_CHANNEL_ID)
+        if not channel:
+            return
+
+        view = ReviewButtons(user=member)
+        msg = await channel.send(embed=application_embed, view=view)
+        view.message = msg
+
+        await user.send("✅ Your interview has been submitted! You'll be contacted soon.")
+
+        # Send ephemeral DM redirect message
+        embed = discord.Embed(
+            description="📩 **Your interview has started in DMs!**\n🔗 Click the button below to go to your messages.",
+            color=discord.Color.green()
+        )
+        view = StartInterviewButton(user)
+        await interaction.response.send_message(embed=embed, ephemeral=True, view=view)
+
+
+class ReviewButtons(discord.ui.View):
+    def __init__(self, user: discord.User):
+        super().__init__(timeout=None)
+        self.user = user
+        self.message = None
+
+    @discord.ui.button(label="✅ Accept", style=discord.ButtonStyle.green)
+    async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if REVIEWER_ROLE_ID not in [r.id for r in interaction.user.roles]:
+            await interaction.response.send_message("You don't have permission to review applications.", ephemeral=True)
+            return
+        await self.user.send("🎉 Your application has been **accepted**! Welcome to UCRP.")
+        embed = self.message.embeds[0]
+        embed.color = discord.Color.green()
+        await self.message.edit(embed=embed, view=None)
+        await interaction.response.send_message(f"✅ Accepted {self.user.mention}", ephemeral=True)
+
+    @discord.ui.button(label="❌ Reject", style=discord.ButtonStyle.danger)
+    async def reject(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if REVIEWER_ROLE_ID not in [r.id for r in interaction.user.roles]:
+            await interaction.response.send_message("You don't have permission to review applications.", ephemeral=True)
+            return
+        await self.user.send("❌ Your application has been **rejected**.")
+        embed = self.message.embeds[0]
+        embed.color = discord.Color.red()
+        await self.message.edit(embed=embed, view=None)
+        await interaction.response.send_message(f"❌ Rejected {self.user.mention}", ephemeral=True)
+
+    @discord.ui.button(label="📝 Reject w/ Reason", style=discord.ButtonStyle.blurple)
+    async def reject_reason(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if REVIEWER_ROLE_ID not in [r.id for r in interaction.user.roles]:
+            await interaction.response.send_message("You don't have permission to review applications.", ephemeral=True)
+            return
+
+        modal = ReasonModal(self)
+        await interaction.response.send_modal(modal)
+
+
+class ReasonModal(discord.ui.Modal, title="Reject with Reason"):
+    reason = discord.ui.TextInput(label="Reason for Rejection", style=discord.TextStyle.paragraph)
+
+    def __init__(self, view: ReviewButtons):
+        super().__init__()
+        self.view = view
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await self.view.user.send(f"❌ Your application has been **rejected**.\n📄 **Reason:** {self.reason.value}")
+        embed = self.view.message.embeds[0]
+        embed.color = discord.Color.red()
+        embed.add_field(name="Rejected with Reason", value=self.reason.value, inline=False)
+        await self.view.message.edit(embed=embed, view=None)
+        await interaction.response.send_message("❌ Application rejected with reason.", ephemeral=True)
+
+# Register /panel command
+@bot.tree.command(name="panel", description="Send the interview application panel")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
+async def panel(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🎟️ UCRP INTERVIEW APPLICATION PANEL",
+        description=(
+            "**Welcome to the UCRP Interview Application System!**\n\n"
+            "🔔 **Important Info:**\n"
+            "- 🏙️ **San Fierro (SF)** is the **main city** in UCRP.\n"
+            "- 🚫 **Los Santos (LS)** is under **TRT control**.\n"
+            "- ❗ You **must obtain a permit** from TRT to enter LS.\n\n"
+            "This is a 12-question interview. Answer truthfully and completely.\n"
+            "Your answers will be reviewed by staff. Be patient.\n\n"
+            "🔘 Click below to start your interview in DM."
+        ),
+        color=discord.Color.orange()
+    )
+    embed.set_thumbnail(url=THUMBNAIL_URL)
+    await interaction.response.send_message(embed=embed, view=InterviewPanel())
 
 # -------- Keep Alive & Run --------
 keep_alive()
