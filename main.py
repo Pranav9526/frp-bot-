@@ -1047,7 +1047,7 @@ async def panel(interaction: discord.Interaction):
     embed.set_thumbnail(url=THUMBNAIL_URL)
     
     # Send a private response only visible to the user
-    await interaction.response.send_message(embed=embed, view=InterviewPanel(), ephemeral=True)
+    await interaction.response.send_message(embed=embed, view=InterviewPanelView(), ephemeral=True)
 
 class InterviewPanelView(discord.ui.View):
     def __init__(self):
