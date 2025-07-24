@@ -34,6 +34,11 @@ REVIEW_CHANNEL_ID = 1379753912155770941
 REVIEWER_ROLE_ID = 1346488365608079452
 THUMBNAIL_URL = "https://cdn.discordapp.com/attachments/1372059707694645360/1396061147333005343/image.png?ex=6881fcc3&is=6880ab43&hm=ae6f0295e136bc7e1a0619674cb9e8844e87fdee8ebc6a2b688ab4206234168e&"
 
+REJECTED_LOG_CHANNEL_ID = 1379763922994991195
+ACCEPTED_LOG_CHANNEL_ID = 1359919316530630918
+ACCEPTED_ROLE_ID = 1347946934308176013
+PENDING_ROLE_ID = 1346488381500166194
+REVIEW_VIDEO_CHANNEL_ID = 1346488640523472958
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -1182,28 +1187,46 @@ class RejectionReasonModal(discord.ui.Modal, title="Reject Application with Reas
         except discord.NotFound:
             return await interaction.response.send_message("❌ Original application message not found.", ephemeral=True)
 
-        # Update the embed color only
+        # Update the embed color
         embed = message.embeds[0]
         updated_embed = embed.copy()
         updated_embed.color = discord.Color.red()
         await message.edit(embed=updated_embed, view=None)
 
-        # Send a new message with the rejection log
+        reason_text = self.reason.value
+
+        # Send rejection log message in review channel
         await review_channel.send(
-            f"{applicant.mention}'s submission has been denied by {self.reviewer.mention} with reason:\n```{self.reason.value}```"
+            f"{applicant.mention}'s submission has been denied by {self.reviewer.mention} with reason:\n```{reason_text}```"
         )
 
-        # DM the user
+        # Send DM
         try:
             await applicant.send(embed=discord.Embed(
                 title="❌ Application Rejected",
-                description=f"Your application was reviewed and **rejected**.\n\n**Reason:**\n```{self.reason.value}```",
+                description=f"Your application was reviewed and **rejected**.\n\n**Reason:**\n```{reason_text}```",
                 color=discord.Color.red()
             ))
         except discord.Forbidden:
             await interaction.followup.send("⚠️ Could not DM the applicant.", ephemeral=True)
 
-        await interaction.response.send_message("❌ Application rejected with reason.", ephemeral=True)
+        # Send formatted log to REJECTED_LOG_CHANNEL
+        rejection_log_channel = interaction.guild.get_channel(REJECTED_LOG_CHANNEL_ID)
+        if rejection_log_channel:
+            log_embed = discord.Embed(
+                description=(
+                    "# Your interview application got rejected\n"
+                    f"{applicant.mention}\n\n"
+                    f"```Reason : {reason_text}```\n\n"
+                    "**Please watch interview questions again**\n"
+                    f"<#{REVIEW_VIDEO_CHANNEL_ID}>\n\n"
+                    "**Next time try to answer all the questions correctly**"
+                ),
+                color=discord.Color.red()
+            )
+            await rejection_log_channel.send(embed=log_embed)
+
+        await interaction.response.send_message("❌ Application rejected and logged.", ephemeral=True)
 
 
 class ReviewButtons(discord.ui.View):
@@ -1244,6 +1267,7 @@ class ReviewButtons(discord.ui.View):
             return await interaction.response.send_message("🚫 You don't have permission to review.", ephemeral=True)
         await interaction.response.send_modal(RejectionReasonModal(self.applicant_id, self.message_id, interaction.user))
 
+
 async def update_application_status(interaction, status, message_id, applicant_id, reviewer, reason="No reason provided"):
     guild = interaction.guild
     channel = interaction.channel
@@ -1256,24 +1280,19 @@ async def update_application_status(interaction, status, message_id, applicant_i
 
     embed = message.embeds[0]
 
-    # Set embed color
+    # Update embed color
     if status == "accepted":
         embed.color = discord.Color.green()
-    elif status == "rejected":
+    else:
         embed.color = discord.Color.red()
 
-    # Update embed in original message
     await message.edit(embed=embed, view=None)
 
-    # Role IDs
-    ACCEPTED_ROLE_ID = 1347946934308176013
-    PENDING_ROLE_ID = 1346488381500166194
+    # Roles
+    accepted_role = guild.get_role(ACCEPTED_ROLE_ID)
+    pending_role = guild.get_role(PENDING_ROLE_ID)
 
-    # Handle role changes if accepted
-    if status == "accepted":
-        accepted_role = guild.get_role(ACCEPTED_ROLE_ID)
-        pending_role = guild.get_role(PENDING_ROLE_ID)
-
+    if status == "accepted" and applicant:
         try:
             if accepted_role:
                 await applicant.add_roles(accepted_role, reason="Application accepted")
@@ -1282,13 +1301,13 @@ async def update_application_status(interaction, status, message_id, applicant_i
         except Exception as e:
             print(f"❌ Role update failed: {e}")
 
-    # Send log message in channel
-    action_word = "accepted" if status == "accepted" else "denied"
+    # Send message in current channel
+    action = "accepted" if status == "accepted" else "denied"
     await channel.send(
-        f"{applicant.mention}'s submission has been {action_word} successfully by {reviewer.mention} with reason:\n```{reason}```"
+        f"{applicant.mention}'s submission has been {action} successfully by {reviewer.mention} with reason:\n```{reason}```"
     )
 
-    # Send DM to applicant
+    # DM user
     try:
         dm_embed = discord.Embed(
             title="📬 Application Result",
@@ -1298,9 +1317,39 @@ async def update_application_status(interaction, status, message_id, applicant_i
         dm_embed.add_field(name="Reviewed By", value=reviewer.mention, inline=True)
         dm_embed.add_field(name="Reason", value=reason, inline=False)
         await applicant.send(embed=dm_embed)
-    except Exception as e:
-        print(f"❌ Failed to DM applicant: {e}")
+    except:
+        pass
 
+    # Logging to accepted/rejected log channels
+    if status == "accepted":
+        log_channel = guild.get_channel(ACCEPTED_LOG_CHANNEL_ID)
+        if log_channel:
+            accepted_embed = discord.Embed(
+                description=(
+                    "**INTERVIEW PASSED**\n"
+                    "**You have successfully passed the interview.**\n\n"
+                    f"{applicant.mention}\n\n"
+                    "**Please register In-Game to whitelist your account.**"
+                ),
+                color=discord.Color.green()
+            )
+            await log_channel.send(embed=accepted_embed)
+
+    elif status == "rejected":
+        log_channel = guild.get_channel(REJECTED_LOG_CHANNEL_ID)
+        if log_channel:
+            rejected_embed = discord.Embed(
+                description=(
+                    "# Your interview application got rejected\n"
+                    f"{applicant.mention}\n\n"
+                    f"```Reason : {reason}```\n\n"
+                    "**Please watch interview questions again**\n"
+                    f"<#{REVIEW_VIDEO_CHANNEL_ID}>\n\n"
+                    "**Next time try to answer all the questions correctly**"
+                ),
+                color=discord.Color.red()
+            )
+            await log_channel.send(embed=rejected_embed)
 # -------- Keep Alive & Run --------
 keep_alive()
 bot.run(TOKEN)
