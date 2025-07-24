@@ -1256,42 +1256,50 @@ async def update_application_status(interaction, status, message_id, applicant_i
 
     embed = message.embeds[0]
 
-    # Change embed color
+    # Set embed color
     if status == "accepted":
         embed.color = discord.Color.green()
     elif status == "rejected":
         embed.color = discord.Color.red()
 
-    # Update original embed
+    # Update embed in original message
     await message.edit(embed=embed, view=None)
 
-    # Add role if accepted
-    if status == "accepted":
-        role = guild.get_role(1347946934308176013)
-        if role:
-            try:
-                await applicant.add_roles(role, reason="Application accepted")
-            except Exception as e:
-                print(f"❌ Failed to assign role: {e}")
+    # Role IDs
+    ACCEPTED_ROLE_ID = 1347946934308176013
+    PENDING_ROLE_ID = 1346488381500166194
 
-    # Send log message in the channel
+    # Handle role changes if accepted
+    if status == "accepted":
+        accepted_role = guild.get_role(ACCEPTED_ROLE_ID)
+        pending_role = guild.get_role(PENDING_ROLE_ID)
+
+        try:
+            if accepted_role:
+                await applicant.add_roles(accepted_role, reason="Application accepted")
+            if pending_role and pending_role in applicant.roles:
+                await applicant.remove_roles(pending_role, reason="Interview accepted, removing pending role")
+        except Exception as e:
+            print(f"❌ Role update failed: {e}")
+
+    # Send log message in channel
     action_word = "accepted" if status == "accepted" else "denied"
     await channel.send(
         f"{applicant.mention}'s submission has been {action_word} successfully by {reviewer.mention} with reason:\n```{reason}```"
     )
 
-    # Send DM to the applicant
+    # Send DM to applicant
     try:
         dm_embed = discord.Embed(
-            title="🎓 Application Result",
+            title="📬 Application Result",
             description=f"Your application has been **{status}**.",
             color=embed.color
         )
-        dm_embed.add_field(name="Reviewer", value=reviewer.mention, inline=True)
+        dm_embed.add_field(name="Reviewed By", value=reviewer.mention, inline=True)
         dm_embed.add_field(name="Reason", value=reason, inline=False)
         await applicant.send(embed=dm_embed)
     except Exception as e:
-        print(f"❌ Failed to DM user: {e}")
+        print(f"❌ Failed to DM applicant: {e}")
 
 # -------- Keep Alive & Run --------
 keep_alive()
