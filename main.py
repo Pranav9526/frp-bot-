@@ -1331,8 +1331,9 @@ async def update_application_status(interaction, status, message_id, applicant_i
                     f"{applicant.mention}\n\n"
                     "**Please register In-Game to whitelist your account.**"
                 ),
-                color=discord.Color.green()
+                color=discord.Color.from_rgb(233, 217, 9)
             )
+            embed.set_image(url="https://cdn.discordapp.com/attachments/1372059707694645360/1397886068702842930/interview_accepted.gif?ex=6884abda&is=68835a5a&hm=825d7e365d03ec470e5ce8f6c10d41272d7ccf2e25f957b82aee603daf7c7c98&")
             await log_channel.send(embed=accepted_embed)
 
     elif status == "rejected":
