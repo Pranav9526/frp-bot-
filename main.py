@@ -1325,8 +1325,8 @@ async def update_application_status(interaction, status, message_id, applicant_i
         log_channel = guild.get_channel(ACCEPTED_LOG_CHANNEL_ID)
         if log_channel:
             accepted_embed = discord.Embed(
+                title="__INTERVIEW ACCEPTED__",
                 description=(
-                    "**INTERVIEW PASSED**\n"
                     "**You have successfully passed the interview.**\n\n"
                     f"{applicant.mention}\n\n"
                     "**Please register In-Game to whitelist your account.**"
